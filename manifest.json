@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Site Notes Overlay",
+  "version": "1.0.0",
+  "description": "Per website sticky notes that appear as a translucent overlay whenever you visit that site.",
+  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "toggle-notes": {
+      "suggested_key": {
+        "default": "Alt+N"
+      },
+      "description": "Show or hide the notes overlay"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Toggle Site Notes"
+  }
+}

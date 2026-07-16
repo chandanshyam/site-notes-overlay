@@ -1,0 +1,119 @@
+#site-notes-overlay {
+  position: fixed;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  min-width: 220px;
+  min-height: 140px;
+  background: rgba(24, 26, 32, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  color: #f2f3f5;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  transition: opacity 0.15s ease;
+  overflow: hidden;
+}
+
+#site-notes-overlay .sn-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 6px 12px;
+  cursor: grab;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+#site-notes-overlay .sn-header:active {
+  cursor: grabbing;
+}
+
+#site-notes-overlay .sn-host {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0.85;
+}
+
+#site-notes-overlay .sn-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+#site-notes-overlay .sn-opacity {
+  width: 64px;
+  height: 12px;
+  accent-color: #8ab4f8;
+  cursor: pointer;
+}
+
+#site-notes-overlay .sn-btn {
+  all: unset;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: #f2f3f5;
+  opacity: 0.7;
+}
+
+#site-notes-overlay .sn-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  opacity: 1;
+}
+
+#site-notes-overlay .sn-text {
+  flex: 1;
+  width: 100%;
+  resize: none;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: 1.5;
+  padding: 10px 12px;
+  box-sizing: border-box;
+}
+
+#site-notes-overlay .sn-text::placeholder {
+  color: rgba(242, 243, 245, 0.4);
+}
+
+#site-notes-overlay .sn-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background:
+    linear-gradient(135deg, transparent 50%, rgba(255, 255, 255, 0.35) 50%);
+  border-bottom-right-radius: 12px;
+}
+
+#site-notes-overlay.sn-collapsed {
+  height: auto !important;
+  min-height: 0;
+}
+
+#site-notes-overlay.sn-collapsed .sn-text,
+#site-notes-overlay.sn-collapsed .sn-resize {
+  display: none;
+}
