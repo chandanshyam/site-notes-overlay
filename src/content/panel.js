@@ -60,9 +60,10 @@ export function createPanel(host, href) {
       persist();
     });
 
-    // full opacity while hovering so it is easy to read and edit
+    // near-solid + full-brightness text while hovering, for easy reading/editing
     panel.addEventListener("mouseenter", () => {
-      panel.style.opacity = "1";
+      panel.style.setProperty("--sn-panel-alpha", "0.98");
+      panel.style.setProperty("--sn-text-boost", "0");
     });
     panel.addEventListener("mouseleave", applyOpacity);
 
@@ -127,7 +128,12 @@ export function createPanel(host, href) {
   }
 
   function applyOpacity() {
-    if (panel) panel.style.opacity = ui.opacity;
+    if (!panel) return;
+    // Transparency fades the BACKGROUND only; the font is kept legible by
+    // boosting its brightness (and a subtle shadow) as the note gets more
+    // see-through. --sn-panel-alpha drives the bg, --sn-text-boost the text.
+    panel.style.setProperty("--sn-panel-alpha", ui.opacity);
+    panel.style.setProperty("--sn-text-boost", (1 - ui.opacity).toFixed(3));
   }
 
   function applyGeometry() {
