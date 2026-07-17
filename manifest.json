@@ -1,9 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Site Notes Overlay",
-  "version": "1.0.0",
-  "description": "Per website sticky notes that appear as a translucent overlay whenever you visit that site.",
-  "permissions": ["storage"],
+  "version": "2.0.0",
+  "description": "Sticky notes for any website — multiple color-coded notes per site, synced across your devices, in a translucent overlay.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage", "scripting", "contextMenus"],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
@@ -25,6 +31,12 @@
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Toggle Site Notes"
+    "default_title": "Toggle Site Notes",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
   }
 }

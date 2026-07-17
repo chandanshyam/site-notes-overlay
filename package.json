@@ -1,0 +1,20 @@
+{
+  "name": "site-notes-overlay",
+  "version": "2.0.0",
+  "description": "Per-website sticky notes that appear as a translucent overlay.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/content/index.js --bundle --outfile=content.js --format=iife && esbuild src/background.js --bundle --outfile=background.js --format=iife",
+    "watch": "npm run build -- --watch",
+    "test": "node src/tests/storage.test.js && node src/tests/editor.test.js",
+    "package": "npm run build && rm -f site-notes-overlay.zip && zip -rq site-notes-overlay.zip manifest.json content.js content.css background.js icons -x '*.DS_Store'"
+  },
+  "devDependencies": {
+    "esbuild": "0.21.5"
+  },
+  "dependencies": {
+    "dompurify": "3.1.6",
+    "marked": "12.0.2"
+  }
+}
