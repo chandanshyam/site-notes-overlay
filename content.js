@@ -3887,7 +3887,8 @@ ${content}</tr>
         persist();
       });
       panel.addEventListener("mouseenter", () => {
-        panel.style.opacity = "1";
+        panel.style.setProperty("--sn-panel-alpha", "0.98");
+        panel.style.setProperty("--sn-text-boost", "0");
       });
       panel.addEventListener("mouseleave", applyOpacity);
       panel.querySelector(".sn-collapse").addEventListener("click", () => {
@@ -3945,7 +3946,9 @@ ${content}</tr>
       makeResizable(panel.querySelector(".sn-resize"));
     }
     function applyOpacity() {
-      if (panel) panel.style.opacity = ui.opacity;
+      if (!panel) return;
+      panel.style.setProperty("--sn-panel-alpha", ui.opacity);
+      panel.style.setProperty("--sn-text-boost", (1 - ui.opacity).toFixed(3));
     }
     function applyGeometry() {
       if (!panel) return;

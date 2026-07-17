@@ -2,12 +2,17 @@
    light mode. Every color below is a var so the two themes stay in sync and
    per-note color (Task 8) can layer on via --sn-note-color. */
 #site-notes-overlay {
-  --sn-bg: rgba(24, 26, 32, 0.72);
+  --sn-bg-rgb: 24, 26, 32;
+  --sn-panel-alpha: 0.72; /* set by JS from the transparency slider */
+  --sn-text-boost: 0;     /* 0 at full opacity → ~0.85 when most transparent */
   --sn-bg-header: rgba(255, 255, 255, 0.06);
   --sn-bg-subtle: rgba(255, 255, 255, 0.06);
   --sn-bg-hover: rgba(255, 255, 255, 0.12);
   --sn-menu-bg: rgba(32, 34, 40, 0.98);
   --sn-text: #f2f3f5;
+  --sn-text-hi: #ffffff;
+  --sn-text-halo: rgba(0, 0, 0, calc(var(--sn-text-boost, 0) * 0.6));
+  --sn-fg: color-mix(in srgb, var(--sn-text), var(--sn-text-hi) calc(var(--sn-text-boost, 0) * 100%));
   --sn-text-dim: rgba(242, 243, 245, 0.4);
   --sn-border: rgba(255, 255, 255, 0.14);
   --sn-border-soft: rgba(255, 255, 255, 0.08);
@@ -21,12 +26,14 @@
 
 @media (prefers-color-scheme: light) {
   #site-notes-overlay {
-    --sn-bg: rgba(255, 255, 255, 0.92);
+    --sn-bg-rgb: 255, 255, 255;
     --sn-bg-header: rgba(0, 0, 0, 0.04);
     --sn-bg-subtle: rgba(0, 0, 0, 0.03);
     --sn-bg-hover: rgba(0, 0, 0, 0.08);
     --sn-menu-bg: rgba(250, 250, 252, 0.99);
     --sn-text: #1a1a1a;
+    --sn-text-hi: #000000;
+    --sn-text-halo: rgba(255, 255, 255, calc(var(--sn-text-boost, 0) * 0.7));
     --sn-text-dim: rgba(26, 26, 26, 0.4);
     --sn-border: rgba(0, 0, 0, 0.14);
     --sn-border-soft: rgba(0, 0, 0, 0.08);
@@ -45,16 +52,17 @@
   flex-direction: column;
   min-width: 240px;
   min-height: 200px;
-  background: var(--sn-bg);
+  background: rgba(var(--sn-bg-rgb), var(--sn-panel-alpha));
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--sn-border);
   border-radius: 12px;
   box-shadow: 0 8px 28px var(--sn-shadow);
-  color: var(--sn-text);
+  color: var(--sn-fg);
+  text-shadow: 0 1px 2px var(--sn-text-halo);
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
-  transition: opacity 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
   overflow: hidden;
 }
 
@@ -109,7 +117,7 @@
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
-  color: var(--sn-text);
+  color: var(--sn-fg);
   opacity: 0.7;
 }
 
@@ -255,7 +263,7 @@
   text-align: center;
   padding: 4px 6px;
   border-radius: 6px;
-  color: var(--sn-text);
+  color: var(--sn-fg);
   opacity: 0.8;
 }
 
@@ -419,7 +427,7 @@
   text-align: center;
   padding: 8px;
   font-size: 12px;
-  color: var(--sn-text);
+  color: var(--sn-fg);
   opacity: 0.7;
   border-top: 1px solid var(--sn-border-soft);
   flex-shrink: 0;
@@ -456,7 +464,7 @@
   cursor: pointer;
   padding: 8px 12px;
   font-size: 12px;
-  color: var(--sn-text);
+  color: var(--sn-fg);
 }
 
 #site-notes-overlay .sn-menu-item:hover {
@@ -473,7 +481,7 @@
   max-width: 90%;
   background: var(--sn-menu-bg);
   border: 1px solid var(--sn-border);
-  color: var(--sn-text);
+  color: var(--sn-fg);
   font-size: 12px;
   padding: 6px 12px;
   border-radius: 8px;
@@ -522,7 +530,7 @@
   border: 1px solid var(--sn-border);
   outline: none;
   background: var(--sn-bg-subtle);
-  color: var(--sn-text);
+  color: var(--sn-fg);
   font: inherit;
   font-size: 12px;
   padding: 4px 8px;
@@ -540,7 +548,7 @@
   font-size: 11px;
   padding: 4px 6px;
   border-radius: 6px;
-  color: var(--sn-text);
+  color: var(--sn-fg);
   opacity: 0.8;
   white-space: nowrap;
 }
