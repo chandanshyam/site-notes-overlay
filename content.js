@@ -1203,6 +1203,14 @@
       await saveMeta(note.host, meta);
     }
   }
+  async function deleteNotesForHost(host) {
+    const meta = await loadMeta(host);
+    const all = await loadAllNotes();
+    const ids = new Set(meta.noteIds);
+    for (const n of all) if (n.host === host) ids.add(n.id);
+    for (const id of ids) await deleteNote(id);
+    return ids.size;
+  }
   function metaMapFromKeys(all, hostFilter) {
     const meta = {};
     for (const key of Object.keys(all)) {
@@ -3630,6 +3638,27 @@ ${content}</tr>
   function previewText(text) {
     return (text || "").replace(/\s+/g, " ").trim().slice(0, 60);
   }
+  function armConfirm(btn, armedLabel, onConfirm) {
+    const idle = btn.textContent;
+    let timer = null;
+    const reset = () => {
+      btn.textContent = idle;
+      btn.classList.remove("sn-confirm");
+      btn.dataset.armed = "";
+    };
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (btn.dataset.armed === "1") {
+        clearTimeout(timer);
+        onConfirm();
+        return;
+      }
+      btn.dataset.armed = "1";
+      btn.textContent = armedLabel;
+      btn.classList.add("sn-confirm");
+      timer = setTimeout(reset, 2e3);
+    });
+  }
   function mountDashboard(panelEl, onClose) {
     const dash = document.createElement("div");
     dash.className = "sn-dashboard";
@@ -3679,7 +3708,17 @@ ${content}</tr>
         visit.rel = "noopener noreferrer";
         visit.textContent = "\u2197";
         visit.title = "Open " + host;
-        header.append(name, visit);
+        const delSite = document.createElement("button");
+        delSite.className = "sn-dash-delete sn-dash-delete-site";
+        delSite.textContent = "\u{1F5D1}";
+        delSite.title = "Delete all notes for this site";
+        const siteCount = notes.length;
+        armConfirm(delSite, `Delete all ${siteCount}?`, async () => {
+          await deleteNotesForHost(host);
+          showToast(panelEl, `Deleted ${siteCount} note${siteCount === 1 ? "" : "s"} for ${host}`);
+          reload();
+        });
+        header.append(name, visit, delSite);
         section.appendChild(header);
         for (const n of notes) {
           const row = document.createElement("div");
@@ -3694,7 +3733,15 @@ ${content}</tr>
           const badge = document.createElement("span");
           badge.className = "sn-dash-scope-badge";
           badge.textContent = n.scope === "url" ? "page" : "site";
-          row.append(title, preview, badge);
+          const del = document.createElement("button");
+          del.className = "sn-dash-delete";
+          del.textContent = "\u{1F5D1}";
+          del.title = "Delete note";
+          armConfirm(del, "Delete?", async () => {
+            await deleteNote(n.id);
+            reload();
+          });
+          row.append(title, preview, badge, del);
           section.appendChild(row);
         }
         listEl.appendChild(section);
@@ -3880,7 +3927,7 @@ ${content}</tr>
       opacitySlider.value = ui.opacity;
       applyOpacity();
       applyGeometry();
-      if (ui.collapsed) panel.classList.add("sn-collapsed");
+      applyCollapsed();
       opacitySlider.addEventListener("input", () => {
         ui.opacity = parseFloat(opacitySlider.value);
         applyOpacity();
@@ -3893,7 +3940,7 @@ ${content}</tr>
       panel.addEventListener("mouseleave", applyOpacity);
       panel.querySelector(".sn-collapse").addEventListener("click", () => {
         ui.collapsed = !ui.collapsed;
-        panel.classList.toggle("sn-collapsed", ui.collapsed);
+        applyCollapsed();
         persist();
       });
       panel.querySelector(".sn-close").addEventListener("click", hide);
@@ -3944,6 +3991,14 @@ ${content}</tr>
       });
       makeDraggable(panel.querySelector(".sn-header"));
       makeResizable(panel.querySelector(".sn-resize"));
+    }
+    function applyCollapsed() {
+      if (!panel) return;
+      panel.classList.toggle("sn-collapsed", ui.collapsed);
+      const btn = panel.querySelector(".sn-collapse");
+      if (!btn) return;
+      btn.textContent = ui.collapsed ? "\u25A1" : "\u2013";
+      btn.title = ui.collapsed ? "Expand" : "Collapse";
     }
     function applyOpacity() {
       if (!panel) return;

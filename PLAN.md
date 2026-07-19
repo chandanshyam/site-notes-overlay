@@ -194,3 +194,43 @@ Deliberately **not** a from-scratch WYSIWYG.
 - All rendered/imported HTML passes through DOMPurify — no regex sanitizing.
 - Every write path degrades to local + `synced:false` rather than surfacing an error.
 - Keep permissions minimal per phase (`contextMenus` only lands in v2.1).
+
+---
+
+## v3 — future: note windows + dashboard-as-manager (not yet started)
+
+Requested 2026-07-17. A re-architecture of the UI model: replace the single
+panel-with-card-stack with **one floating window per note**, and turn the
+dashboard into a create/manage surface. Staged so each piece ships independently.
+
+### Task 13 — one floating window per note
+- Split the current single panel into **N independent note windows**, one per
+  note, instead of a stacked card list. Each window: drag, resize, per-note
+  transparency (reuse the background-fade + font-brightness behavior already
+  built), color, markdown preview, scope toggle, delete, close.
+- **Per-note window geometry** (`x, y, w, h, opacity`) stored locally, keyed by
+  note id — e.g. `siteNotes:win:<id>` — so it never pollutes the synced note
+  content. Note *content* still syncs; window placement stays device-local.
+- On load, open the non-minimized note windows whose scope matches the current
+  host/href; others stay closed until launched from the dashboard.
+- Likely new module `noteWindow.js` (merges today's panel chrome + a single
+  card); `cards.js` retires or folds in.
+
+### Task 14 — dashboard as launcher/manager
+- Dashboard gains **＋ New note** to spawn a new note window on the current site.
+- Dashboard lists notes with an open/focus action per note.
+- **Open question (deferred):** dashboard scope — this-site-first with an "All"
+  toggle, vs always all-sites grouped. Decide when starting this task.
+
+### Task 15 — minimize / dock  _(deferred — revisit before building)_
+- A minimize control on each note window. **Open question:** where a minimized
+  note goes — into the dashboard as a restorable "dock/taskbar" entry, vs
+  collapse-in-place to just its title bar. User asked to defer this decision;
+  settle it when this task is picked up.
+
+### Migration / compatibility notes for v3
+- v2 notes need no data migration — they already carry ids; only the *new*
+  per-note window-geometry records are additive. The existing `ui:<host>` panel
+  geometry becomes vestigial (can be ignored or cleaned up).
+- Preserve everything from the Cross-cutting rules above (injection guard,
+  DOMPurify on all rendered/imported HTML, graceful sync degradation).

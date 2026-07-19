@@ -155,6 +155,21 @@ await test("deleteNote removes note and meta entry", async () => {
   assert.ok(!meta.noteIds.includes(id), "id removed from meta");
 });
 
+await test("deleteNotesForHost removes only that host's notes", async () => {
+  installChrome();
+  await S.saveNote({ id: S.generateId(), host: "a.com", scope: "site", url: null, text: "a1" });
+  await S.saveNote({ id: S.generateId(), host: "a.com", scope: "url", url: "https://a.com/x", text: "a2" });
+  await S.saveNote({ id: S.generateId(), host: "b.com", scope: "site", url: null, text: "b1" });
+
+  const removed = await S.deleteNotesForHost("a.com");
+  assert.equal(removed, 2, "reports 2 deleted");
+  const aNotes = await S.loadNotesForHost("a.com", "https://a.com/x");
+  assert.equal(aNotes.length, 0, "a.com cleared");
+  const bNotes = await S.loadNotesForHost("b.com", "https://b.com/");
+  assert.equal(bNotes.length, 1, "b.com untouched");
+  assert.deepEqual((await S.loadMeta("a.com")).noteIds, [], "a.com meta emptied");
+});
+
 await test("export → wipe → import restores notes", async () => {
   const local = installChrome();
   await S.saveNote({ id: S.generateId(), host: "a.com", scope: "site", url: null, text: "one" });
