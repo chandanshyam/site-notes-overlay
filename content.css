@@ -588,9 +588,43 @@
 }
 
 #site-notes-overlay .sn-dash-hostname {
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+#site-notes-overlay .sn-dash-delete {
+  all: unset;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px;
+  border-radius: 5px;
+  opacity: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#site-notes-overlay .sn-dash-note:hover .sn-dash-delete,
+#site-notes-overlay .sn-dash-site-header:hover .sn-dash-delete-site,
+#site-notes-overlay .sn-dash-delete.sn-confirm {
+  opacity: 0.6;
+}
+
+#site-notes-overlay .sn-dash-delete:hover {
+  opacity: 1 !important;
+  background: var(--sn-bg-hover);
+}
+
+#site-notes-overlay .sn-dash-delete.sn-confirm {
+  opacity: 1 !important;
+  color: var(--sn-danger);
+}
+
+#site-notes-overlay .sn-dash-delete-site {
+  font-size: 10px;
 }
 
 #site-notes-overlay .sn-dash-visit {

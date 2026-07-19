@@ -3,11 +3,35 @@
 // Note text is rendered via textContent only — never innerHTML — so there is no
 // injection surface here.
 
-import { loadAllNotes } from "./storage.js";
+import { loadAllNotes, deleteNote, deleteNotesForHost } from "./storage.js";
 import { exportAll, pickAndImport, importResultMessage, showToast } from "./io.js";
 
 function previewText(text) {
   return (text || "").replace(/\s+/g, " ").trim().slice(0, 60);
+}
+
+// Two-step confirm on a button: first click arms (shows armedLabel), a second
+// click within 2s runs onConfirm; otherwise it reverts.
+function armConfirm(btn, armedLabel, onConfirm) {
+  const idle = btn.textContent;
+  let timer = null;
+  const reset = () => {
+    btn.textContent = idle;
+    btn.classList.remove("sn-confirm");
+    btn.dataset.armed = "";
+  };
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (btn.dataset.armed === "1") {
+      clearTimeout(timer);
+      onConfirm();
+      return;
+    }
+    btn.dataset.armed = "1";
+    btn.textContent = armedLabel;
+    btn.classList.add("sn-confirm");
+    timer = setTimeout(reset, 2000);
+  });
 }
 
 export function mountDashboard(panelEl, onClose) {
@@ -64,7 +88,19 @@ export function mountDashboard(panelEl, onClose) {
       visit.rel = "noopener noreferrer";
       visit.textContent = "↗";
       visit.title = "Open " + host;
-      header.append(name, visit);
+
+      const delSite = document.createElement("button");
+      delSite.className = "sn-dash-delete sn-dash-delete-site";
+      delSite.textContent = "🗑";
+      delSite.title = "Delete all notes for this site";
+      const siteCount = notes.length;
+      armConfirm(delSite, `Delete all ${siteCount}?`, async () => {
+        await deleteNotesForHost(host);
+        showToast(panelEl, `Deleted ${siteCount} note${siteCount === 1 ? "" : "s"} for ${host}`);
+        reload();
+      });
+
+      header.append(name, visit, delSite);
       section.appendChild(header);
 
       for (const n of notes) {
@@ -84,7 +120,16 @@ export function mountDashboard(panelEl, onClose) {
         badge.className = "sn-dash-scope-badge";
         badge.textContent = n.scope === "url" ? "page" : "site";
 
-        row.append(title, preview, badge);
+        const del = document.createElement("button");
+        del.className = "sn-dash-delete";
+        del.textContent = "🗑";
+        del.title = "Delete note";
+        armConfirm(del, "Delete?", async () => {
+          await deleteNote(n.id);
+          reload();
+        });
+
+        row.append(title, preview, badge, del);
         section.appendChild(row);
       }
       listEl.appendChild(section);

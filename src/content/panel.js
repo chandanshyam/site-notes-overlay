@@ -52,7 +52,7 @@ export function createPanel(host, href) {
     opacitySlider.value = ui.opacity;
     applyOpacity();
     applyGeometry();
-    if (ui.collapsed) panel.classList.add("sn-collapsed");
+    applyCollapsed();
 
     opacitySlider.addEventListener("input", () => {
       ui.opacity = parseFloat(opacitySlider.value);
@@ -69,7 +69,7 @@ export function createPanel(host, href) {
 
     panel.querySelector(".sn-collapse").addEventListener("click", () => {
       ui.collapsed = !ui.collapsed;
-      panel.classList.toggle("sn-collapsed", ui.collapsed);
+      applyCollapsed();
       persist();
     });
 
@@ -125,6 +125,18 @@ export function createPanel(host, href) {
 
     makeDraggable(panel.querySelector(".sn-header"));
     makeResizable(panel.querySelector(".sn-resize"));
+  }
+
+  // Collapsed hides the body and leaves only the header. The toggle button
+  // swaps to a maximize affordance (□ / "Expand") so a fully minimized note can
+  // always be restored; expanded it shows the collapse affordance (– / "Collapse").
+  function applyCollapsed() {
+    if (!panel) return;
+    panel.classList.toggle("sn-collapsed", ui.collapsed);
+    const btn = panel.querySelector(".sn-collapse");
+    if (!btn) return;
+    btn.textContent = ui.collapsed ? "□" : "–";
+    btn.title = ui.collapsed ? "Expand" : "Collapse";
   }
 
   function applyOpacity() {
