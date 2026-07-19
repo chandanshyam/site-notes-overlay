@@ -280,6 +280,17 @@ export async function deleteNote(id) {
   }
 }
 
+// Delete every note for a host (from meta and from a full scan, so sync-only
+// notes are caught too). Returns the number of notes deleted.
+export async function deleteNotesForHost(host) {
+  const meta = await loadMeta(host);
+  const all = await loadAllNotes();
+  const ids = new Set(meta.noteIds);
+  for (const n of all) if (n.host === host) ids.add(n.id);
+  for (const id of ids) await deleteNote(id);
+  return ids.size;
+}
+
 // ---------- export / import ----------
 
 function metaMapFromKeys(all, hostFilter) {
