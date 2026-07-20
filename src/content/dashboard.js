@@ -34,7 +34,7 @@ function armConfirm(btn, armedLabel, onConfirm) {
   });
 }
 
-export function mountDashboard(panelEl, onClose) {
+export function mountDashboard(panelEl, onClose, onOpenNote) {
   const dash = document.createElement("div");
   dash.className = "sn-dashboard";
   dash.innerHTML = `
@@ -107,6 +107,16 @@ export function mountDashboard(panelEl, onClose) {
         const row = document.createElement("div");
         row.className = "sn-dash-note";
         row.dataset.noteId = n.id;
+        row.title = "Double-click to open";
+
+        // Double-click opens the note: same-site notes are revealed in the
+        // panel, other-site notes open their page/site in a new tab. Ignore
+        // dblclicks that land on the delete button.
+        row.addEventListener("dblclick", (e) => {
+          if (e.target.closest("button") || e.target.closest("a")) return;
+          close();
+          if (onOpenNote) onOpenNote(n);
+        });
 
         const title = document.createElement("span");
         title.className = "sn-dash-title";
