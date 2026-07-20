@@ -159,18 +159,40 @@
   display: flex;
   flex-direction: column;
   border-bottom: 1px solid var(--sn-border-soft);
+  /* Color as a quiet organizing spine: a 3px left rule, not a header fill.
+     Neutral resolves to transparent, so an uncolored note has no spine. */
+  border-left: 3px solid var(--sn-note-color, transparent);
+  transition: border-color 0.15s ease;
 }
 
 #site-notes-overlay .sn-card:last-child {
   border-bottom: none;
 }
 
+/* Local-only marker: a small amber dot riding on the spine — always in the
+   same place, quieter than a text badge. */
+#site-notes-overlay .sn-local-dot {
+  position: absolute;
+  left: -3px;
+  top: 9px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--sn-warning);
+  box-shadow: 0 0 0 2px rgba(var(--sn-bg-rgb), var(--sn-panel-alpha));
+  pointer-events: none;
+}
+
+#site-notes-overlay .sn-local-dot[hidden] {
+  display: none;
+}
+
 #site-notes-overlay .sn-card-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 8px 4px 12px;
-  background: var(--sn-note-color);
+  gap: 4px;
+  padding: 5px 6px 5px 9px;
+  min-height: 26px;
 }
 
 #site-notes-overlay .sn-card-title {
@@ -181,8 +203,8 @@
   background: transparent;
   color: inherit;
   font: inherit;
-  font-weight: 600;
-  font-size: 12px;
+  font-weight: 500;
+  font-size: 14px;
   padding: 2px 0;
 }
 
@@ -191,77 +213,59 @@
   font-weight: 500;
 }
 
-#site-notes-overlay .sn-local-badge {
-  font-size: 10px;
-  color: var(--sn-warning);
-  opacity: 0.9;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-#site-notes-overlay .sn-local-badge[hidden] {
-  display: none;
-}
-
+/* Chrome hides until you reach for it: the action row fades in on hover/focus,
+   so a resting card is spine + title + body only. */
 #site-notes-overlay .sn-card-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
-#site-notes-overlay .sn-scope-toggle {
-  all: unset;
-  cursor: pointer;
-  font-size: 10px;
-  letter-spacing: 0.03em;
-  opacity: 0.6;
-  padding: 1px 6px;
-  border: 1px solid var(--sn-border);
-  border-radius: 5px;
-  white-space: nowrap;
-}
-
-#site-notes-overlay .sn-scope-toggle:hover {
+#site-notes-overlay .sn-card:hover .sn-card-actions,
+#site-notes-overlay .sn-card:focus-within .sn-card-actions {
   opacity: 1;
-  background: var(--sn-bg-hover);
 }
 
-#site-notes-overlay .sn-card-open {
+/* One consistent icon button for every card control. */
+#site-notes-overlay .sn-icon-btn {
   all: unset;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
   cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  padding: 1px 4px;
-  border-radius: 5px;
-  opacity: 0.6;
   color: var(--sn-fg);
-  text-decoration: none;
+  opacity: 0.55;
+  transition: opacity 0.15s ease, background-color 0.15s ease;
 }
 
-#site-notes-overlay .sn-card-open:hover {
+#site-notes-overlay .sn-icon-btn:hover {
   opacity: 1;
   background: var(--sn-bg-hover);
 }
 
-#site-notes-overlay .sn-color-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 1px solid var(--sn-border);
-  background: var(--sn-note-color, transparent);
-  cursor: pointer;
-  flex-shrink: 0;
+#site-notes-overlay .sn-icon-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
 }
 
-#site-notes-overlay .sn-color-picker {
+/* ---- per-card overflow (⋯) menu: color + set-default + delete ---- */
+
+#site-notes-overlay .sn-overflow-menu {
   position: absolute;
-  top: 30px;
-  right: 30px;
+  top: 28px;
+  right: 6px;
   z-index: 7;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  min-width: 160px;
   padding: 8px;
   background: var(--sn-menu-bg);
   border: 1px solid var(--sn-border);
@@ -269,13 +273,15 @@
   box-shadow: 0 6px 20px var(--sn-shadow);
 }
 
-#site-notes-overlay .sn-color-picker[hidden] {
+#site-notes-overlay .sn-overflow-menu[hidden] {
   display: none;
 }
 
 #site-notes-overlay .sn-color-row {
   display: flex;
   gap: 6px;
+  justify-content: space-between;
+  padding: 2px 2px 4px;
 }
 
 #site-notes-overlay .sn-color-option {
@@ -287,47 +293,36 @@
   cursor: pointer;
 }
 
+#site-notes-overlay .sn-color-option.sn-swatch-neutral {
+  background:
+    linear-gradient(135deg, transparent 45%, var(--sn-border) 45%, var(--sn-border) 55%, transparent 55%);
+}
+
 #site-notes-overlay .sn-color-option.sn-selected {
   outline: 2px solid var(--sn-accent);
   outline-offset: 1px;
 }
 
-#site-notes-overlay .sn-set-default {
-  all: unset;
-  cursor: pointer;
-  font-size: 11px;
-  text-align: center;
-  padding: 4px 6px;
-  border-radius: 6px;
-  color: var(--sn-fg);
-  opacity: 0.8;
-}
-
-#site-notes-overlay .sn-set-default:hover {
-  background: var(--sn-bg-hover);
-  opacity: 1;
-}
-
-#site-notes-overlay .sn-card-delete {
+#site-notes-overlay .sn-menu-item.sn-set-default,
+#site-notes-overlay .sn-menu-item.sn-card-delete {
   all: unset;
   cursor: pointer;
   font-size: 12px;
-  line-height: 1;
-  padding: 2px 4px;
-  border-radius: 5px;
-  opacity: 0.6;
-  white-space: nowrap;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--sn-fg);
+  opacity: 0.85;
 }
 
-#site-notes-overlay .sn-card-delete:hover {
-  opacity: 1;
+#site-notes-overlay .sn-menu-item.sn-set-default:hover,
+#site-notes-overlay .sn-menu-item.sn-card-delete:hover {
   background: var(--sn-bg-hover);
+  opacity: 1;
 }
 
 #site-notes-overlay .sn-card-delete.sn-confirm {
   opacity: 1;
   color: var(--sn-danger);
-  font-size: 11px;
 }
 
 #site-notes-overlay .sn-card-body {
@@ -339,8 +334,9 @@
   background: transparent;
   color: inherit;
   font: inherit;
+  font-size: 14px;
   line-height: 1.5;
-  padding: 4px 12px 12px;
+  padding: 2px 12px 12px 9px;
   box-sizing: border-box;
 }
 
@@ -348,26 +344,11 @@
   color: var(--sn-text-dim);
 }
 
-#site-notes-overlay .sn-preview-toggle {
-  all: unset;
-  cursor: pointer;
-  font-size: 12px;
-  line-height: 1;
-  padding: 2px 4px;
-  border-radius: 5px;
-  opacity: 0.6;
-}
-
-#site-notes-overlay .sn-preview-toggle:hover {
-  opacity: 1;
-  background: var(--sn-bg-hover);
-}
-
 /* ---------- rendered markdown preview ---------- */
 
 #site-notes-overlay .sn-card-preview {
-  padding: 4px 12px 12px;
-  font-size: 13px;
+  padding: 2px 12px 12px 9px;
+  font-size: 14px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -392,9 +373,10 @@
   line-height: 1.25;
 }
 
-#site-notes-overlay .sn-card-preview h1 { font-size: 1.4em; }
-#site-notes-overlay .sn-card-preview h2 { font-size: 1.25em; }
-#site-notes-overlay .sn-card-preview h3 { font-size: 1.1em; }
+/* Modest steps — this is a tiny document, not a billboard. */
+#site-notes-overlay .sn-card-preview h1 { font-size: 1.25em; }
+#site-notes-overlay .sn-card-preview h2 { font-size: 1.15em; }
+#site-notes-overlay .sn-card-preview h3 { font-size: 1.05em; }
 
 #site-notes-overlay .sn-card-preview p,
 #site-notes-overlay .sn-card-preview ul,
