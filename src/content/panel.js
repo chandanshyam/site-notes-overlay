@@ -30,7 +30,7 @@ export function createPanel(host, href) {
       <div class="sn-header" title="Drag to move">
         <span class="sn-host"></span>
         <div class="sn-controls">
-          <input class="sn-opacity" type="range" min="0.15" max="1" step="0.05" title="Transparency">
+          <input class="sn-opacity" type="range" min="0.15" max="1" step="0.05" title="How see-through your notes are">
           <button class="sn-btn sn-dashboard-btn" title="All notes">⊞</button>
           <button class="sn-btn sn-menu-btn" title="More…">⋯</button>
           <button class="sn-btn sn-collapse" title="Collapse">–</button>
@@ -100,9 +100,9 @@ export function createPanel(host, href) {
       if (!menu.hidden && !e.target.closest(".sn-menu") && !e.target.closest(".sn-menu-btn")) {
         closeMenu();
       }
-      // close color pickers when clicking anywhere that isn't a picker or its dot
-      if (!e.target.closest(".sn-color-picker") && !e.target.closest(".sn-color-dot")) {
-        panel.querySelectorAll(".sn-color-picker").forEach((p) => { p.hidden = true; });
+      // close per-card overflow menus when clicking outside a menu or its button
+      if (!e.target.closest(".sn-overflow-menu") && !e.target.closest(".sn-overflow-btn")) {
+        panel.querySelectorAll(".sn-overflow-menu").forEach((m) => { m.hidden = true; });
       }
     });
     panel.querySelector(".sn-export-site").addEventListener("click", () => {

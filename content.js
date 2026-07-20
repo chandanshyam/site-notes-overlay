@@ -1281,20 +1281,17 @@
 
   // src/content/theme.js
   var COLORS = [
-    { id: "neutral", label: "Neutral", light: "transparent", dark: "transparent" },
-    { id: "yellow", label: "Yellow", light: "#fff7cc", dark: "#3d3400" },
-    { id: "blue", label: "Blue", light: "#e2ecff", dark: "#0d2a4a" },
-    { id: "green", label: "Green", light: "#dcf3e3", dark: "#0d2e1a" },
-    { id: "pink", label: "Pink", light: "#fbe0ec", dark: "#3d0a22" },
-    { id: "purple", label: "Purple", light: "#ece2fb", dark: "#1e0d3d" }
+    { id: "neutral", label: "Neutral", spine: "transparent" },
+    { id: "yellow", label: "Yellow", spine: "#d3a03e" },
+    { id: "blue", label: "Blue", spine: "#5b87c9" },
+    { id: "green", label: "Green", spine: "#54a06b" },
+    { id: "pink", label: "Pink", spine: "#cb6f96" },
+    { id: "purple", label: "Purple", spine: "#8f6fca" }
   ];
   var BY_ID = Object.fromEntries(COLORS.map((c) => [c.id, c]));
-  function prefersDark() {
-    return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
-  }
   function colorValue(colorId) {
     const c = BY_ID[colorId] || BY_ID.neutral;
-    return prefersDark() ? c.dark : c.light;
+    return c.spine;
   }
   function applyNoteColor(cardEl, colorId) {
     cardEl.style.setProperty("--sn-note-color", colorValue(colorId || "neutral"));
@@ -3382,6 +3379,15 @@ ${content}</tr>
   // src/content/cards.js
   var SAVE_DELAY = 300;
   var CONFIRM_MS = 2e3;
+  var ICONS = {
+    eye: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8Z"/><circle cx="8" cy="8" r="1.9"/></svg>`,
+    pencil: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2.5 13.5 5.5 6 13H3v-3z"/><path d="M9.5 3.5 12.5 6.5"/></svg>`,
+    globe: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M2 8h12"/><path d="M8 2c1.9 2 1.9 10 0 12M8 2c-1.9 2-1.9 10 0 12"/></svg>`,
+    link: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.4 9.4 6.6"/><path d="M7.2 4.5 8 3.7a2.6 2.6 0 0 1 3.7 3.7l-1.2 1.2"/><path d="M8.8 11.5 8 12.3a2.6 2.6 0 0 1-3.7-3.7l1.2-1.2"/></svg>`,
+    open: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11 11 5"/><path d="M6 5h5v5"/></svg>`,
+    overflow: `<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.35"/><circle cx="8" cy="8" r="1.35"/><circle cx="12.5" cy="8" r="1.35"/></svg>`,
+    trash: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10"/><path d="M6.4 4.5V3h3.2v1.5"/><path d="M4.6 4.5 5.2 12.5a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-8"/></svg>`
+  };
   function debounced(fn, delay) {
     let t = null;
     return () => {
@@ -3391,7 +3397,7 @@ ${content}</tr>
   }
   function labelScope(el, note) {
     const isUrl = note.scope === "url";
-    el.textContent = isUrl ? "\u{1F517} page" : "\u{1F310} site";
+    el.innerHTML = isUrl ? ICONS.link : ICONS.globe;
     el.title = isUrl ? "Shows only on this page \u2014 click for whole site" : "Shows on the whole site \u2014 click to pin to this page";
   }
   function buildCard(note, href) {
@@ -3399,18 +3405,17 @@ ${content}</tr>
     card.className = "sn-card";
     card.dataset.noteId = note.id;
     card.innerHTML = `
+    <span class="sn-local-dot" title="Too large to sync \u2014 saved on this device only" hidden></span>
     <div class="sn-card-header">
       <input class="sn-card-title" placeholder="Untitled" spellcheck="false">
-      <span class="sn-local-badge" title="Too large to sync \u2014 saved on this device only" hidden>\u26A0 local</span>
       <div class="sn-card-actions">
-        <button class="sn-preview-toggle" title="Preview">\u{1F441}</button>
-        <button class="sn-scope-toggle"></button>
-        <a class="sn-card-open" target="_blank" rel="noopener noreferrer"></a>
-        <span class="sn-color-dot"></span>
-        <button class="sn-card-delete" title="Delete note">\u{1F5D1}</button>
+        <button class="sn-icon-btn sn-preview-toggle" title="Preview">${ICONS.eye}</button>
+        <button class="sn-icon-btn sn-scope-toggle"></button>
+        <a class="sn-icon-btn sn-card-open" target="_blank" rel="noopener noreferrer">${ICONS.open}</a>
+        <button class="sn-icon-btn sn-overflow-btn" title="More\u2026">${ICONS.overflow}</button>
       </div>
     </div>
-    <textarea class="sn-card-body" placeholder="Notes\u2026 (markdown supported)" spellcheck="false"></textarea>
+    <textarea class="sn-card-body" placeholder="Write something\u2026" spellcheck="false"></textarea>
     <div class="sn-card-preview" hidden></div>
   `;
     const titleEl = card.querySelector(".sn-card-title");
@@ -3419,7 +3424,7 @@ ${content}</tr>
     const previewBtn = card.querySelector(".sn-preview-toggle");
     const scopeEl = card.querySelector(".sn-scope-toggle");
     const openEl = card.querySelector(".sn-card-open");
-    const badgeEl = card.querySelector(".sn-local-badge");
+    const dotEl = card.querySelector(".sn-local-dot");
     titleEl.value = note.title || "";
     bodyEl.value = note.text || "";
     labelScope(scopeEl, note);
@@ -3431,12 +3436,11 @@ ${content}</tr>
         target = href;
       }
       openEl.href = target;
-      openEl.textContent = "\u2197";
       openEl.title = note.scope === "url" ? "Open this page" : "Open site home";
     }
     updateOpenLink();
     function updateBadge() {
-      badgeEl.hidden = note.synced !== false;
+      dotEl.hidden = note.synced !== false;
     }
     updateBadge();
     const save = debounced(async () => {
@@ -3470,7 +3474,7 @@ ${content}</tr>
     }
     function setPreview(on) {
       previewMode = on;
-      previewBtn.textContent = on ? "\u270F\uFE0F" : "\u{1F441}";
+      previewBtn.innerHTML = on ? ICONS.pencil : ICONS.eye;
       previewBtn.title = on ? "Edit" : "Preview";
       bodyEl.hidden = on;
       previewEl.hidden = !on;
@@ -3506,48 +3510,67 @@ ${content}</tr>
       updateOpenLink();
       saveNote(note);
     });
-    const dotEl = card.querySelector(".sn-color-dot");
     applyNoteColor(card, note.color);
-    const picker = document.createElement("div");
-    picker.className = "sn-color-picker";
-    picker.hidden = true;
-    picker.innerHTML = `
+    const menu = document.createElement("div");
+    menu.className = "sn-overflow-menu";
+    menu.hidden = true;
+    menu.innerHTML = `
     <div class="sn-color-row">
       ${COLORS.map(
       (c) => `<button class="sn-color-option" data-color="${c.id}" title="${c.label}"></button>`
     ).join("")}
     </div>
-    <button class="sn-set-default">Set as site default</button>
+    <button class="sn-menu-item sn-set-default">Set as site default</button>
+    <button class="sn-menu-item sn-card-delete">Delete note</button>
   `;
-    card.appendChild(picker);
+    card.appendChild(menu);
     function paintSwatches() {
-      picker.querySelectorAll(".sn-color-option").forEach((btn) => {
-        btn.style.background = colorValue(btn.dataset.color);
+      menu.querySelectorAll(".sn-color-option").forEach((btn) => {
+        const c = colorValue(btn.dataset.color);
+        btn.style.background = c === "transparent" ? "transparent" : c;
+        btn.classList.toggle("sn-swatch-neutral", c === "transparent");
         btn.classList.toggle("sn-selected", (note.color || "neutral") === btn.dataset.color);
       });
     }
     paintSwatches();
-    dotEl.addEventListener("click", (e) => {
+    const overflowBtn = card.querySelector(".sn-overflow-btn");
+    const delBtn = menu.querySelector(".sn-card-delete");
+    let confirmTimer = null;
+    function resetDelete() {
+      delBtn.dataset.confirm = "";
+      delBtn.textContent = "Delete note";
+      delBtn.classList.remove("sn-confirm");
+    }
+    function closeMenu() {
+      menu.hidden = true;
+      clearTimeout(confirmTimer);
+      resetDelete();
+    }
+    overflowBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       const container = card.parentElement;
       if (container) {
-        container.querySelectorAll(".sn-color-picker").forEach((p) => {
-          if (p !== picker) p.hidden = true;
+        container.querySelectorAll(".sn-overflow-menu").forEach((m) => {
+          if (m !== menu) m.hidden = true;
         });
       }
-      picker.hidden = !picker.hidden;
+      if (menu.hidden) {
+        menu.hidden = false;
+      } else {
+        closeMenu();
+      }
     });
-    picker.querySelectorAll(".sn-color-option").forEach((btn) => {
+    menu.querySelectorAll(".sn-color-option").forEach((btn) => {
       btn.addEventListener("click", () => {
         note.color = btn.dataset.color;
         applyNoteColor(card, note.color);
         paintSwatches();
-        picker.hidden = true;
+        closeMenu();
         saveNote(note);
       });
     });
-    picker.querySelector(".sn-set-default").addEventListener("click", async () => {
-      picker.hidden = true;
+    menu.querySelector(".sn-set-default").addEventListener("click", async () => {
+      closeMenu();
       const meta = await loadMeta(note.host);
       meta.defaultColor = note.color || "neutral";
       await saveMeta(note.host, meta);
@@ -3557,13 +3580,6 @@ ${content}</tr>
       paintSwatches();
     });
     card.__snCleanup = unsubTheme;
-    const delBtn = card.querySelector(".sn-card-delete");
-    let confirmTimer = null;
-    function resetDelete() {
-      delBtn.dataset.confirm = "";
-      delBtn.textContent = "\u{1F5D1}";
-      delBtn.classList.remove("sn-confirm");
-    }
     delBtn.addEventListener("click", () => {
       if (delBtn.dataset.confirm === "1") {
         clearTimeout(confirmTimer);
@@ -3572,7 +3588,7 @@ ${content}</tr>
         return;
       }
       delBtn.dataset.confirm = "1";
-      delBtn.textContent = "Delete?";
+      delBtn.textContent = "Click again to delete";
       delBtn.classList.add("sn-confirm");
       confirmTimer = setTimeout(resetDelete, CONFIRM_MS);
     });
@@ -3946,7 +3962,7 @@ ${content}</tr>
       <div class="sn-header" title="Drag to move">
         <span class="sn-host"></span>
         <div class="sn-controls">
-          <input class="sn-opacity" type="range" min="0.15" max="1" step="0.05" title="Transparency">
+          <input class="sn-opacity" type="range" min="0.15" max="1" step="0.05" title="How see-through your notes are">
           <button class="sn-btn sn-dashboard-btn" title="All notes">\u229E</button>
           <button class="sn-btn sn-menu-btn" title="More\u2026">\u22EF</button>
           <button class="sn-btn sn-collapse" title="Collapse">\u2013</button>
@@ -4004,9 +4020,9 @@ ${content}</tr>
         if (!menu.hidden && !e.target.closest(".sn-menu") && !e.target.closest(".sn-menu-btn")) {
           closeMenu();
         }
-        if (!e.target.closest(".sn-color-picker") && !e.target.closest(".sn-color-dot")) {
-          panel.querySelectorAll(".sn-color-picker").forEach((p) => {
-            p.hidden = true;
+        if (!e.target.closest(".sn-overflow-menu") && !e.target.closest(".sn-overflow-btn")) {
+          panel.querySelectorAll(".sn-overflow-menu").forEach((m) => {
+            m.hidden = true;
           });
         }
       });
