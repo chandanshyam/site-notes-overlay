@@ -1,5 +1,9 @@
 // The stack of note cards inside the panel. Each card is one Note; edits autosave
 // on a short debounce. Delete requires a two-step confirm to avoid accidents.
+//
+// Design: the card defers to the page at rest — spine + title + body only — and
+// reveals its action row on hover/focus. Controls use one line-icon set (single
+// stroke, currentColor); delete and color live in a small overflow (⋯) menu.
 
 import {
   loadNotesForHost,
@@ -15,6 +19,17 @@ import { renderMarkdown, toggleTask } from "./editor.js";
 const SAVE_DELAY = 300;
 const CONFIRM_MS = 2000;
 
+// One line-icon set: single stroke weight, currentColor, drawn on a 16px grid.
+const ICONS = {
+  eye: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8Z"/><circle cx="8" cy="8" r="1.9"/></svg>`,
+  pencil: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 2.5 13.5 5.5 6 13H3v-3z"/><path d="M9.5 3.5 12.5 6.5"/></svg>`,
+  globe: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6"/><path d="M2 8h12"/><path d="M8 2c1.9 2 1.9 10 0 12M8 2c-1.9 2-1.9 10 0 12"/></svg>`,
+  link: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.4 9.4 6.6"/><path d="M7.2 4.5 8 3.7a2.6 2.6 0 0 1 3.7 3.7l-1.2 1.2"/><path d="M8.8 11.5 8 12.3a2.6 2.6 0 0 1-3.7-3.7l1.2-1.2"/></svg>`,
+  open: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11 11 5"/><path d="M6 5h5v5"/></svg>`,
+  overflow: `<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.35"/><circle cx="8" cy="8" r="1.35"/><circle cx="12.5" cy="8" r="1.35"/></svg>`,
+  trash: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10"/><path d="M6.4 4.5V3h3.2v1.5"/><path d="M4.6 4.5 5.2 12.5a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-8"/></svg>`,
+};
+
 function debounced(fn, delay) {
   let t = null;
   return () => {
@@ -24,10 +39,10 @@ function debounced(fn, delay) {
 }
 
 // site-scoped notes show on every page of the host; url-scoped notes show only
-// on the exact href where they were pinned.
+// on the exact href where they were pinned. Icon-only, tooltip carries the copy.
 function labelScope(el, note) {
   const isUrl = note.scope === "url";
-  el.textContent = isUrl ? "🔗 page" : "🌐 site";
+  el.innerHTML = isUrl ? ICONS.link : ICONS.globe;
   el.title = isUrl
     ? "Shows only on this page — click for whole site"
     : "Shows on the whole site — click to pin to this page";
@@ -38,18 +53,17 @@ function buildCard(note, href) {
   card.className = "sn-card";
   card.dataset.noteId = note.id;
   card.innerHTML = `
+    <span class="sn-local-dot" title="Too large to sync — saved on this device only" hidden></span>
     <div class="sn-card-header">
       <input class="sn-card-title" placeholder="Untitled" spellcheck="false">
-      <span class="sn-local-badge" title="Too large to sync — saved on this device only" hidden>⚠ local</span>
       <div class="sn-card-actions">
-        <button class="sn-preview-toggle" title="Preview">👁</button>
-        <button class="sn-scope-toggle"></button>
-        <a class="sn-card-open" target="_blank" rel="noopener noreferrer"></a>
-        <span class="sn-color-dot"></span>
-        <button class="sn-card-delete" title="Delete note">🗑</button>
+        <button class="sn-icon-btn sn-preview-toggle" title="Preview">${ICONS.eye}</button>
+        <button class="sn-icon-btn sn-scope-toggle"></button>
+        <a class="sn-icon-btn sn-card-open" target="_blank" rel="noopener noreferrer">${ICONS.open}</a>
+        <button class="sn-icon-btn sn-overflow-btn" title="More…">${ICONS.overflow}</button>
       </div>
     </div>
-    <textarea class="sn-card-body" placeholder="Notes… (markdown supported)" spellcheck="false"></textarea>
+    <textarea class="sn-card-body" placeholder="Write something…" spellcheck="false"></textarea>
     <div class="sn-card-preview" hidden></div>
   `;
 
@@ -59,7 +73,7 @@ function buildCard(note, href) {
   const previewBtn = card.querySelector(".sn-preview-toggle");
   const scopeEl = card.querySelector(".sn-scope-toggle");
   const openEl = card.querySelector(".sn-card-open");
-  const badgeEl = card.querySelector(".sn-local-badge");
+  const dotEl = card.querySelector(".sn-local-dot");
   titleEl.value = note.title || "";
   bodyEl.value = note.text || "";
   labelScope(scopeEl, note);
@@ -74,14 +88,13 @@ function buildCard(note, href) {
       target = href;
     }
     openEl.href = target;
-    openEl.textContent = "↗";
     openEl.title = note.scope === "url" ? "Open this page" : "Open site home";
   }
   updateOpenLink();
 
   function updateBadge() {
     // synced is recomputed on every save; false means it exceeded the sync cap.
-    badgeEl.hidden = note.synced !== false;
+    dotEl.hidden = note.synced !== false;
   }
   updateBadge();
 
@@ -122,7 +135,7 @@ function buildCard(note, href) {
 
   function setPreview(on) {
     previewMode = on;
-    previewBtn.textContent = on ? "✏️" : "👁";
+    previewBtn.innerHTML = on ? ICONS.pencil : ICONS.eye;
     previewBtn.title = on ? "Edit" : "Preview";
     bodyEl.hidden = on;
     previewEl.hidden = !on;
@@ -168,55 +181,76 @@ function buildCard(note, href) {
     saveNote(note);
   });
 
-  // ---- per-note color ----
-  const dotEl = card.querySelector(".sn-color-dot");
+  // ---- overflow (⋯) menu: color + set-default + delete ----
   applyNoteColor(card, note.color);
 
-  const picker = document.createElement("div");
-  picker.className = "sn-color-picker";
-  picker.hidden = true;
-  picker.innerHTML = `
+  const menu = document.createElement("div");
+  menu.className = "sn-overflow-menu";
+  menu.hidden = true;
+  menu.innerHTML = `
     <div class="sn-color-row">
       ${COLORS.map(
         (c) => `<button class="sn-color-option" data-color="${c.id}" title="${c.label}"></button>`
       ).join("")}
     </div>
-    <button class="sn-set-default">Set as site default</button>
+    <button class="sn-menu-item sn-set-default">Set as site default</button>
+    <button class="sn-menu-item sn-card-delete">Delete note</button>
   `;
-  card.appendChild(picker);
+  card.appendChild(menu);
 
   function paintSwatches() {
-    picker.querySelectorAll(".sn-color-option").forEach((btn) => {
-      btn.style.background = colorValue(btn.dataset.color);
+    menu.querySelectorAll(".sn-color-option").forEach((btn) => {
+      const c = colorValue(btn.dataset.color);
+      // neutral resolves to transparent — show it as an empty ring, not blank.
+      btn.style.background = c === "transparent" ? "transparent" : c;
+      btn.classList.toggle("sn-swatch-neutral", c === "transparent");
       btn.classList.toggle("sn-selected", (note.color || "neutral") === btn.dataset.color);
     });
   }
   paintSwatches();
 
-  dotEl.addEventListener("click", (e) => {
+  const overflowBtn = card.querySelector(".sn-overflow-btn");
+  const delBtn = menu.querySelector(".sn-card-delete");
+  let confirmTimer = null;
+  function resetDelete() {
+    delBtn.dataset.confirm = "";
+    delBtn.textContent = "Delete note";
+    delBtn.classList.remove("sn-confirm");
+  }
+  function closeMenu() {
+    menu.hidden = true;
+    clearTimeout(confirmTimer);
+    resetDelete();
+  }
+
+  overflowBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    // only one picker open at a time across the stack
+    // only one overflow menu open at a time across the stack
     const container = card.parentElement;
     if (container) {
-      container.querySelectorAll(".sn-color-picker").forEach((p) => {
-        if (p !== picker) p.hidden = true;
+      container.querySelectorAll(".sn-overflow-menu").forEach((m) => {
+        if (m !== menu) m.hidden = true;
       });
     }
-    picker.hidden = !picker.hidden;
+    if (menu.hidden) {
+      menu.hidden = false;
+    } else {
+      closeMenu();
+    }
   });
 
-  picker.querySelectorAll(".sn-color-option").forEach((btn) => {
+  menu.querySelectorAll(".sn-color-option").forEach((btn) => {
     btn.addEventListener("click", () => {
       note.color = btn.dataset.color;
       applyNoteColor(card, note.color);
       paintSwatches();
-      picker.hidden = true;
+      closeMenu();
       saveNote(note);
     });
   });
 
-  picker.querySelector(".sn-set-default").addEventListener("click", async () => {
-    picker.hidden = true;
+  menu.querySelector(".sn-set-default").addEventListener("click", async () => {
+    closeMenu();
     const meta = await loadMeta(note.host);
     meta.defaultColor = note.color || "neutral";
     await saveMeta(note.host, meta);
@@ -230,13 +264,6 @@ function buildCard(note, href) {
   card.__snCleanup = unsubTheme;
 
   // Two-step delete: first click arms, second click within CONFIRM_MS deletes.
-  const delBtn = card.querySelector(".sn-card-delete");
-  let confirmTimer = null;
-  function resetDelete() {
-    delBtn.dataset.confirm = "";
-    delBtn.textContent = "🗑";
-    delBtn.classList.remove("sn-confirm");
-  }
   delBtn.addEventListener("click", () => {
     if (delBtn.dataset.confirm === "1") {
       clearTimeout(confirmTimer);
@@ -245,7 +272,7 @@ function buildCard(note, href) {
       return;
     }
     delBtn.dataset.confirm = "1";
-    delBtn.textContent = "Delete?";
+    delBtn.textContent = "Click again to delete";
     delBtn.classList.add("sn-confirm");
     confirmTimer = setTimeout(resetDelete, CONFIRM_MS);
   });
