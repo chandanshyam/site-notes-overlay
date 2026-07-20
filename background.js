@@ -42,4 +42,43 @@
       selectionText: info.selectionText || ""
     });
   });
+  var ALARM_PREFIX = "snremind:";
+  var NOTE_PREFIX = "siteNotes:note:";
+  var notificationTarget = {};
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (!msg) return;
+    if (msg.type === "SITE_NOTES_SET_REMINDER" && msg.noteId && msg.when) {
+      chrome.alarms.create(ALARM_PREFIX + msg.noteId, { when: msg.when });
+    } else if (msg.type === "SITE_NOTES_CLEAR_REMINDER" && msg.noteId) {
+      chrome.alarms.clear(ALARM_PREFIX + msg.noteId);
+    }
+  });
+  chrome.alarms.onAlarm.addListener(async (alarm) => {
+    if (!alarm.name.startsWith(ALARM_PREFIX)) return;
+    const id = alarm.name.slice(ALARM_PREFIX.length);
+    const key = NOTE_PREFIX + id;
+    const note = (await chrome.storage.local.get(key))[key];
+    if (!note) return;
+    const title = (note.title || "").trim() || "Site note reminder";
+    const body = plainSnippet(note.text) || note.host || "";
+    const notificationId = ALARM_PREFIX + id;
+    if (note.scope === "url" && note.url) notificationTarget[notificationId] = note.url;
+    else if (note.host) notificationTarget[notificationId] = "https://" + note.host + "/";
+    chrome.notifications.create(notificationId, {
+      type: "basic",
+      iconUrl: "icons/icon128.png",
+      title,
+      message: body,
+      priority: 2
+    });
+  });
+  chrome.notifications.onClicked.addListener((notificationId) => {
+    const url = notificationTarget[notificationId];
+    if (url) chrome.tabs.create({ url });
+    delete notificationTarget[notificationId];
+    chrome.notifications.clear(notificationId);
+  });
+  function plainSnippet(text) {
+    return (text || "").replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/[>#*_`~-]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+  }
 })();

@@ -7,6 +7,7 @@ import { renderCards, addCard } from "./cards.js";
 import { exportSite, pickAndImport, importResultMessage, showToast } from "./io.js";
 import { mountDashboard } from "./dashboard.js";
 import { mountMarkers } from "./highlight.js";
+import { armAll } from "./reminders.js";
 
 export function createPanel(host, href) {
   let panel = null;
@@ -60,21 +61,8 @@ export function createPanel(host, href) {
       persist();
     });
 
-    // While actively dragging the transparency slider, suppress the focus
-    // "solid" boost (CSS reads .sn-adjusting) so the user sees the true opacity
-    // as live feedback. On release we also blur the slider, otherwise it keeps
-    // focus and :focus-within would hold the panel solid — hiding the very
-    // transparency the user just set.
-    const stopAdjust = () => panel.classList.remove("sn-adjusting");
-    const endDrag = () => { stopAdjust(); opacitySlider.blur(); };
-    opacitySlider.addEventListener("pointerdown", () => panel.classList.add("sn-adjusting"));
-    opacitySlider.addEventListener("pointerup", endDrag);
-    opacitySlider.addEventListener("pointercancel", endDrag);
-    opacitySlider.addEventListener("blur", stopAdjust);
-
-    // The solid-while-editing behavior is now driven entirely by CSS
-    // (:focus-within). Doing it in JS left the inline alpha stuck at 0.98 when a
-    // header drag captured the pointer and no mouseleave ever fired.
+    // The panel always shows the slider's transparency — it never snaps solid on
+    // hover or while editing — so there's no focus "boost" to suppress here.
 
     panel.querySelector(".sn-collapse").addEventListener("click", () => {
       ui.collapsed = !ui.collapsed;
@@ -168,9 +156,8 @@ export function createPanel(host, href) {
     if (!panel) return;
     // Transparency fades the BACKGROUND only; the font is kept legible by
     // boosting its brightness (and a subtle shadow) as the note gets more
-    // see-through. We set the *resting* values; CSS derives the effective
-    // --sn-panel-alpha / --sn-text-boost from these and overrides them to solid
-    // on :hover / :focus-within (unless .sn-adjusting is set).
+    // see-through. These resting values are the effective values everywhere —
+    // CSS no longer overrides them to solid on hover or while editing.
     panel.style.setProperty("--sn-alpha-rest", ui.opacity);
     panel.style.setProperty("--sn-boost-rest", (1 - ui.opacity).toFixed(3));
   }
@@ -353,6 +340,9 @@ export function createPanel(host, href) {
     if (notes.length || ui.open) show();
     // place markers for anchored notes even when the panel is closed
     refreshMarkers();
+    // re-arm any still-future reminders on this device (alarms don't sync, but
+    // the note's remindAt does — visiting the site rebuilds the alarm here).
+    armAll(notes);
   }
 
   return { show, hide, toggle, init, addHighlightNote };

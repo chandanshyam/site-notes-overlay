@@ -74,16 +74,10 @@
   overflow: hidden;
 }
 
-/* Near-solid + full-brightness text only while actively EDITING a note
-   (:focus-within) — deliberately NOT on mere :hover. Hovering must show the
-   transparency the slider is set to; otherwise, since you hover the panel to
-   reach the slider, releasing it snaps back to solid and the setting looks like
-   it never applied. Text stays legible when transparent via --sn-text-boost.
-   Suppressed while dragging the slider (.sn-adjusting) for live feedback. */
-#site-notes-overlay:focus-within:not(.sn-adjusting) {
-  --sn-panel-alpha: 0.98;
-  --sn-text-boost: 0;
-}
+/* The panel keeps the slider's transparency at all times — including while you
+   edit a note. It never snaps solid on :hover or :focus-within; the glass is the
+   identity. Text stays legible at any opacity via --sn-text-boost (which brightens
+   the ink and adds a subtle halo as the background gets more see-through). */
 
 #site-notes-overlay .sn-header {
   display: flex;
@@ -325,6 +319,82 @@
   color: var(--sn-danger);
 }
 
+/* ---------- reminder controls (in the ⋯ menu) ---------- */
+
+#site-notes-overlay .sn-remind-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  margin: 2px 0;
+  border-top: 1px solid var(--sn-border-soft);
+  border-bottom: 1px solid var(--sn-border-soft);
+}
+
+#site-notes-overlay .sn-remind-label {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+#site-notes-overlay .sn-remind-input {
+  font: inherit;
+  font-size: 12px;
+  color: var(--sn-fg);
+  background: var(--sn-bg-subtle);
+  border: 1px solid var(--sn-border);
+  border-radius: 6px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+#site-notes-overlay .sn-remind-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+#site-notes-overlay .sn-menu-item.sn-remind-set,
+#site-notes-overlay .sn-menu-item.sn-remind-clear {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--sn-fg);
+  opacity: 0.85;
+}
+
+#site-notes-overlay .sn-menu-item.sn-remind-set:hover,
+#site-notes-overlay .sn-menu-item.sn-remind-clear:hover {
+  background: var(--sn-bg-hover);
+  opacity: 1;
+}
+
+/* ---------- reminder pill on the card ---------- */
+
+#site-notes-overlay .sn-remind-pill {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 12px 4px 9px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: var(--sn-accent);
+  background: color-mix(in srgb, var(--sn-accent) 14%, transparent);
+}
+
+#site-notes-overlay .sn-remind-pill[hidden] {
+  display: none;
+}
+
+#site-notes-overlay .sn-remind-pill svg {
+  width: 12px;
+  height: 12px;
+}
+
 #site-notes-overlay .sn-card-body {
   width: 100%;
   min-height: 80px;
@@ -363,6 +433,14 @@
 
 #site-notes-overlay .sn-card-preview > *:last-child {
   margin-bottom: 0;
+}
+
+#site-notes-overlay .sn-card-preview img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 4px 0;
+  display: block;
 }
 
 #site-notes-overlay .sn-card-preview h1,
