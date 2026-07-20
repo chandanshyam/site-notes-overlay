@@ -60,12 +60,21 @@ export function createPanel(host, href) {
       persist();
     });
 
-    // near-solid + full-brightness text while hovering, for easy reading/editing
-    panel.addEventListener("mouseenter", () => {
-      panel.style.setProperty("--sn-panel-alpha", "0.98");
-      panel.style.setProperty("--sn-text-boost", "0");
-    });
-    panel.addEventListener("mouseleave", applyOpacity);
+    // While actively dragging the transparency slider, suppress the focus
+    // "solid" boost (CSS reads .sn-adjusting) so the user sees the true opacity
+    // as live feedback. On release we also blur the slider, otherwise it keeps
+    // focus and :focus-within would hold the panel solid — hiding the very
+    // transparency the user just set.
+    const stopAdjust = () => panel.classList.remove("sn-adjusting");
+    const endDrag = () => { stopAdjust(); opacitySlider.blur(); };
+    opacitySlider.addEventListener("pointerdown", () => panel.classList.add("sn-adjusting"));
+    opacitySlider.addEventListener("pointerup", endDrag);
+    opacitySlider.addEventListener("pointercancel", endDrag);
+    opacitySlider.addEventListener("blur", stopAdjust);
+
+    // The solid-while-editing behavior is now driven entirely by CSS
+    // (:focus-within). Doing it in JS left the inline alpha stuck at 0.98 when a
+    // header drag captured the pointer and no mouseleave ever fired.
 
     panel.querySelector(".sn-collapse").addEventListener("click", () => {
       ui.collapsed = !ui.collapsed;
@@ -116,11 +125,27 @@ export function createPanel(host, href) {
       if (dashboardOpen) return;
       dashboardOpen = true;
       closeMenu();
-      mountDashboard(panel, () => {
-        dashboardOpen = false;
-        // notes may have been imported from the dashboard — refresh the stack
-        renderCards(host, href, container);
-      });
+      mountDashboard(
+        panel,
+        () => {
+          dashboardOpen = false;
+          // notes may have been imported from the dashboard — refresh the stack
+          renderCards(host, href, container);
+        },
+        (note) => {
+          // Double-clicked a note in the dashboard.
+          if (note.host === host) {
+            // Wait for the dashboard's close animation + its onClose re-render
+            // (~200ms) to finish, so revealNote's scroll/flash isn't wiped.
+            setTimeout(() => revealNote(note.id), 220);
+          } else {
+            // A note for another site — open that site/page in a new tab.
+            const url =
+              note.scope === "url" && note.url ? note.url : "https://" + note.host + "/";
+            window.open(url, "_blank", "noopener,noreferrer");
+          }
+        }
+      );
     });
 
     makeDraggable(panel.querySelector(".sn-header"));
@@ -143,9 +168,11 @@ export function createPanel(host, href) {
     if (!panel) return;
     // Transparency fades the BACKGROUND only; the font is kept legible by
     // boosting its brightness (and a subtle shadow) as the note gets more
-    // see-through. --sn-panel-alpha drives the bg, --sn-text-boost the text.
-    panel.style.setProperty("--sn-panel-alpha", ui.opacity);
-    panel.style.setProperty("--sn-text-boost", (1 - ui.opacity).toFixed(3));
+    // see-through. We set the *resting* values; CSS derives the effective
+    // --sn-panel-alpha / --sn-text-boost from these and overrides them to solid
+    // on :hover / :focus-within (unless .sn-adjusting is set).
+    panel.style.setProperty("--sn-alpha-rest", ui.opacity);
+    panel.style.setProperty("--sn-boost-rest", (1 - ui.opacity).toFixed(3));
   }
 
   function applyGeometry() {
@@ -303,10 +330,13 @@ export function createPanel(host, href) {
     };
     await saveNote(note);
     await revealNote(note.id);
-    // put the caret after the quote so the user can start typing
+    // put the caret after the quote so the user can start typing. The note has
+    // content (the quote), so the card opens rendered — switch it to the editor
+    // first (its body is hidden in preview mode).
     const card = panel.querySelector(`[data-note-id="${note.id}"]`);
     const body = card && card.querySelector(".sn-card-body");
     if (body) {
+      if (body.hidden) card.querySelector(".sn-preview-toggle")?.click();
       body.focus();
       body.selectionStart = body.selectionEnd = body.value.length;
     }
