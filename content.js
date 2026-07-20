@@ -3405,6 +3405,7 @@ ${content}</tr>
       <div class="sn-card-actions">
         <button class="sn-preview-toggle" title="Preview">\u{1F441}</button>
         <button class="sn-scope-toggle"></button>
+        <a class="sn-card-open" target="_blank" rel="noopener noreferrer"></a>
         <span class="sn-color-dot"></span>
         <button class="sn-card-delete" title="Delete note">\u{1F5D1}</button>
       </div>
@@ -3417,10 +3418,23 @@ ${content}</tr>
     const previewEl = card.querySelector(".sn-card-preview");
     const previewBtn = card.querySelector(".sn-preview-toggle");
     const scopeEl = card.querySelector(".sn-scope-toggle");
+    const openEl = card.querySelector(".sn-card-open");
     const badgeEl = card.querySelector(".sn-local-badge");
     titleEl.value = note.title || "";
     bodyEl.value = note.text || "";
     labelScope(scopeEl, note);
+    function updateOpenLink() {
+      let target;
+      try {
+        target = note.scope === "url" && note.url ? note.url : new URL(href).origin + "/";
+      } catch {
+        target = href;
+      }
+      openEl.href = target;
+      openEl.textContent = "\u2197";
+      openEl.title = note.scope === "url" ? "Open this page" : "Open site home";
+    }
+    updateOpenLink();
     function updateBadge() {
       badgeEl.hidden = note.synced !== false;
     }
@@ -3451,6 +3465,9 @@ ${content}</tr>
         });
       });
     }
+    function hasContent() {
+      return (note.text || "").trim().length > 0;
+    }
     function setPreview(on) {
       previewMode = on;
       previewBtn.textContent = on ? "\u270F\uFE0F" : "\u{1F441}";
@@ -3461,6 +3478,22 @@ ${content}</tr>
       else bodyEl.focus();
     }
     previewBtn.addEventListener("click", () => setPreview(!previewMode));
+    if (hasContent()) setPreview(true);
+    let togglingView = false;
+    previewBtn.addEventListener("mousedown", () => {
+      togglingView = true;
+    });
+    bodyEl.addEventListener("blur", () => {
+      if (togglingView) {
+        togglingView = false;
+        return;
+      }
+      if (hasContent()) setPreview(true);
+    });
+    previewEl.addEventListener("click", (e) => {
+      if (e.target.closest('input[type="checkbox"]') || e.target.closest("a")) return;
+      setPreview(false);
+    });
     scopeEl.addEventListener("click", () => {
       if (note.scope === "url") {
         note.scope = "site";
@@ -3470,6 +3503,7 @@ ${content}</tr>
         note.url = href;
       }
       labelScope(scopeEl, note);
+      updateOpenLink();
       saveNote(note);
     });
     const dotEl = card.querySelector(".sn-color-dot");
@@ -3659,7 +3693,7 @@ ${content}</tr>
       timer = setTimeout(reset, 2e3);
     });
   }
-  function mountDashboard(panelEl, onClose) {
+  function mountDashboard(panelEl, onClose, onOpenNote) {
     const dash = document.createElement("div");
     dash.className = "sn-dashboard";
     dash.innerHTML = `
@@ -3724,6 +3758,12 @@ ${content}</tr>
           const row = document.createElement("div");
           row.className = "sn-dash-note";
           row.dataset.noteId = n.id;
+          row.title = "Double-click to open";
+          row.addEventListener("dblclick", (e) => {
+            if (e.target.closest("button") || e.target.closest("a")) return;
+            close();
+            if (onOpenNote) onOpenNote(n);
+          });
           const title = document.createElement("span");
           title.className = "sn-dash-title";
           title.textContent = n.title || "Untitled";
@@ -3933,11 +3973,15 @@ ${content}</tr>
         applyOpacity();
         persist();
       });
-      panel.addEventListener("mouseenter", () => {
-        panel.style.setProperty("--sn-panel-alpha", "0.98");
-        panel.style.setProperty("--sn-text-boost", "0");
-      });
-      panel.addEventListener("mouseleave", applyOpacity);
+      const stopAdjust = () => panel.classList.remove("sn-adjusting");
+      const endDrag = () => {
+        stopAdjust();
+        opacitySlider.blur();
+      };
+      opacitySlider.addEventListener("pointerdown", () => panel.classList.add("sn-adjusting"));
+      opacitySlider.addEventListener("pointerup", endDrag);
+      opacitySlider.addEventListener("pointercancel", endDrag);
+      opacitySlider.addEventListener("blur", stopAdjust);
       panel.querySelector(".sn-collapse").addEventListener("click", () => {
         ui.collapsed = !ui.collapsed;
         applyCollapsed();
@@ -3984,10 +4028,21 @@ ${content}</tr>
         if (dashboardOpen) return;
         dashboardOpen = true;
         closeMenu();
-        mountDashboard(panel, () => {
-          dashboardOpen = false;
-          renderCards(host, href, container);
-        });
+        mountDashboard(
+          panel,
+          () => {
+            dashboardOpen = false;
+            renderCards(host, href, container);
+          },
+          (note) => {
+            if (note.host === host) {
+              setTimeout(() => revealNote(note.id), 220);
+            } else {
+              const url = note.scope === "url" && note.url ? note.url : "https://" + note.host + "/";
+              window.open(url, "_blank", "noopener,noreferrer");
+            }
+          }
+        );
       });
       makeDraggable(panel.querySelector(".sn-header"));
       makeResizable(panel.querySelector(".sn-resize"));
@@ -4002,8 +4057,8 @@ ${content}</tr>
     }
     function applyOpacity() {
       if (!panel) return;
-      panel.style.setProperty("--sn-panel-alpha", ui.opacity);
-      panel.style.setProperty("--sn-text-boost", (1 - ui.opacity).toFixed(3));
+      panel.style.setProperty("--sn-alpha-rest", ui.opacity);
+      panel.style.setProperty("--sn-boost-rest", (1 - ui.opacity).toFixed(3));
     }
     function applyGeometry() {
       if (!panel) return;
@@ -4141,6 +4196,7 @@ ${content}</tr>
       const card = panel.querySelector(`[data-note-id="${note.id}"]`);
       const body = card && card.querySelector(".sn-card-body");
       if (body) {
+        if (body.hidden) card.querySelector(".sn-preview-toggle")?.click();
         body.focus();
         body.selectionStart = body.selectionEnd = body.value.length;
       }

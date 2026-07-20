@@ -44,6 +44,7 @@ function buildCard(note, href) {
       <div class="sn-card-actions">
         <button class="sn-preview-toggle" title="Preview">👁</button>
         <button class="sn-scope-toggle"></button>
+        <a class="sn-card-open" target="_blank" rel="noopener noreferrer"></a>
         <span class="sn-color-dot"></span>
         <button class="sn-card-delete" title="Delete note">🗑</button>
       </div>
@@ -57,10 +58,26 @@ function buildCard(note, href) {
   const previewEl = card.querySelector(".sn-card-preview");
   const previewBtn = card.querySelector(".sn-preview-toggle");
   const scopeEl = card.querySelector(".sn-scope-toggle");
+  const openEl = card.querySelector(".sn-card-open");
   const badgeEl = card.querySelector(".sn-local-badge");
   titleEl.value = note.title || "";
   bodyEl.value = note.text || "";
   labelScope(scopeEl, note);
+
+  // ↗ opens the page/site this note belongs to: a url-scoped note links to its
+  // exact page, a site-scoped note links to the host's home.
+  function updateOpenLink() {
+    let target;
+    try {
+      target = note.scope === "url" && note.url ? note.url : new URL(href).origin + "/";
+    } catch {
+      target = href;
+    }
+    openEl.href = target;
+    openEl.textContent = "↗";
+    openEl.title = note.scope === "url" ? "Open this page" : "Open site home";
+  }
+  updateOpenLink();
 
   function updateBadge() {
     // synced is recomputed on every save; false means it exceeded the sync cap.
@@ -99,6 +116,10 @@ function buildCard(note, href) {
     });
   }
 
+  function hasContent() {
+    return (note.text || "").trim().length > 0;
+  }
+
   function setPreview(on) {
     previewMode = on;
     previewBtn.textContent = on ? "✏️" : "👁";
@@ -111,6 +132,28 @@ function buildCard(note, href) {
 
   previewBtn.addEventListener("click", () => setPreview(!previewMode));
 
+  // A note with content opens in the rendered "readme" view, not the raw
+  // editor; empty notes open in the editor so you can start typing.
+  if (hasContent()) setPreview(true);
+
+  // Once you finish editing (focus leaves the textarea), the note has been
+  // saved, so flip back to the rendered view. Guard the preview toggle: its
+  // mousedown fires just before this blur, so we skip the auto-flip and let the
+  // button's own click own the transition.
+  let togglingView = false;
+  previewBtn.addEventListener("mousedown", () => { togglingView = true; });
+  bodyEl.addEventListener("blur", () => {
+    if (togglingView) { togglingView = false; return; }
+    if (hasContent()) setPreview(true);
+  });
+
+  // Clicking the rendered view (anywhere but a checkbox or link) drops back into
+  // the editor.
+  previewEl.addEventListener("click", (e) => {
+    if (e.target.closest('input[type="checkbox"]') || e.target.closest("a")) return;
+    setPreview(false);
+  });
+
   // Scope is a discrete action, so save immediately rather than debounced.
   scopeEl.addEventListener("click", () => {
     if (note.scope === "url") {
@@ -121,6 +164,7 @@ function buildCard(note, href) {
       note.url = href;
     }
     labelScope(scopeEl, note);
+    updateOpenLink();
     saveNote(note);
   });
 

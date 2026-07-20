@@ -3,8 +3,13 @@
    per-note color (Task 8) can layer on via --sn-note-color. */
 #site-notes-overlay {
   --sn-bg-rgb: 24, 26, 32;
-  --sn-panel-alpha: 0.72; /* set by JS from the transparency slider */
-  --sn-text-boost: 0;     /* 0 at full opacity → ~0.85 when most transparent */
+  /* Resting values are set by JS from the transparency slider. The *effective*
+     values below default to the resting ones and are overridden to solid on
+     :hover / :focus-within (see the boost rule further down). */
+  --sn-alpha-rest: 0.72;
+  --sn-boost-rest: 0;
+  --sn-panel-alpha: var(--sn-alpha-rest);
+  --sn-text-boost: var(--sn-boost-rest); /* 0 at full opacity → ~0.85 when most transparent */
   --sn-bg-header: rgba(255, 255, 255, 0.06);
   --sn-bg-subtle: rgba(255, 255, 255, 0.06);
   --sn-bg-hover: rgba(255, 255, 255, 0.12);
@@ -53,8 +58,10 @@
   min-width: 240px;
   min-height: 200px;
   background: rgba(var(--sn-bg-rgb), var(--sn-panel-alpha));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  /* Scale the frosted blur with opacity: near-solid stays nicely frosted, but a
+     very transparent panel reads as genuinely see-through instead of opaque. */
+  backdrop-filter: blur(calc(var(--sn-panel-alpha) * 12px));
+  -webkit-backdrop-filter: blur(calc(var(--sn-panel-alpha) * 12px));
   border: 1px solid var(--sn-border);
   border-radius: 12px;
   box-shadow: 0 8px 28px var(--sn-shadow);
@@ -62,8 +69,20 @@
   text-shadow: 0 1px 2px var(--sn-text-halo);
   font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.15s ease, color 0.15s ease,
+    backdrop-filter 0.15s ease;
   overflow: hidden;
+}
+
+/* Near-solid + full-brightness text only while actively EDITING a note
+   (:focus-within) — deliberately NOT on mere :hover. Hovering must show the
+   transparency the slider is set to; otherwise, since you hover the panel to
+   reach the slider, releasing it snaps back to solid and the setting looks like
+   it never applied. Text stays legible when transparent via --sn-text-boost.
+   Suppressed while dragging the slider (.sn-adjusting) for live feedback. */
+#site-notes-overlay:focus-within:not(.sn-adjusting) {
+  --sn-panel-alpha: 0.98;
+  --sn-text-boost: 0;
 }
 
 #site-notes-overlay .sn-header {
@@ -204,6 +223,23 @@
 }
 
 #site-notes-overlay .sn-scope-toggle:hover {
+  opacity: 1;
+  background: var(--sn-bg-hover);
+}
+
+#site-notes-overlay .sn-card-open {
+  all: unset;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 5px;
+  opacity: 0.6;
+  color: var(--sn-fg);
+  text-decoration: none;
+}
+
+#site-notes-overlay .sn-card-open:hover {
   opacity: 1;
   background: var(--sn-bg-hover);
 }
@@ -638,6 +674,7 @@
   align-items: baseline;
   gap: 8px;
   padding: 5px 12px 5px 20px;
+  cursor: pointer;
 }
 
 #site-notes-overlay .sn-dash-note:hover {
