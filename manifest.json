@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Site Notes Overlay",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Sticky notes for any website — multiple color-coded notes per site, synced across your devices, in a translucent overlay.",
   "icons": {
     "16": "icons/icon16.png",

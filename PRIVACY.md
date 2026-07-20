@@ -1,6 +1,6 @@
 # Privacy Policy — Site Notes Overlay
 
-_Last updated: 2026-07-16_
+_Last updated: 2026-07-20_
 
 Site Notes Overlay is designed to keep your data private. In plain terms: **your
 notes never leave your own browser and Google account. We have no servers and we
@@ -23,6 +23,16 @@ collect nothing.**
 - Notes too large to sync, plus panel position/size preferences, are kept in
   **`chrome.storage.local`** on that device only.
 
+## What the extension reads from a page
+
+- The page's **address** (URL and hostname), used only to attach your notes to
+  the correct site or page.
+- **Text you have selected**, and only when you explicitly choose "Add note for
+  selection" from the right-click menu, so it can be quoted into a new note.
+
+The extension does not scrape, read, or store any other page content, and none
+of this information is ever transmitted off your device.
+
 ## What we collect and share
 
 - **Nothing.** The extension has no backend, sends no analytics, contains no
@@ -35,8 +45,14 @@ collect nothing.**
   Google account).
 - **`scripting`** and **host access (`<all_urls>`)** — to display the notes
   overlay on the pages you visit and to show it on tabs that were already open
-  when the extension was installed or updated. The extension only ever injects
-  its own notes panel; it does not read, collect, or transmit page content.
+  when the extension was installed or updated. On each page the extension reads
+  only the page address (to match notes to the site) and, when you invoke it,
+  your selected text; it injects only its own notes panel and reads no other
+  page content.
+- **`contextMenus`** — to add the "Add note for selection" right-click option.
+- **`alarms`** — to schedule reminders you set on a note.
+- **`notifications`** — to show a desktop notification when a note reminder is
+  due.
 
 ## Your control
 

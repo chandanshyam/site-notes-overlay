@@ -50,9 +50,14 @@ English
   already open when the extension was installed or updated, so the toolbar
   button/shortcut works without requiring a page reload.
 - **host permission `<all_urls>`** — The overlay is a per-site notepad, so it
-  must be able to appear on any site the user chooses to take notes on. The
-  extension injects only its own UI; it does not read, collect, or transmit page
-  content.
+  must be able to appear on any site the user chooses to take notes on. On each
+  page the extension reads only the page address (to match notes to the site)
+  and, when the user invokes "Add note for selection," the selected text. It
+  injects only its own UI and reads no other page content, and transmits nothing
+  off the device.
+- **contextMenus** — Adds the "Add note for selection" right-click option.
+- **alarms** — Schedules reminders the user sets on a note.
+- **notifications** — Shows a desktop notification when a note reminder is due.
 
 ## Data safety / privacy disclosures
 
@@ -72,4 +77,4 @@ English
       (2) the site/page scope toggle, (3) the all-notes dashboard with search.
 - [ ] Privacy policy published at a public URL and linked in the listing.
 - [ ] $5 one-time developer registration paid.
-- [ ] Version in manifest.json matches the release (currently 2.0.0).
+- [ ] Version in manifest.json matches the release (currently 1.0.0).
