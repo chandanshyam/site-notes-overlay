@@ -15,6 +15,8 @@ import {
 } from "./storage.js";
 import { COLORS, colorValue, applyNoteColor, onSchemeChange } from "./theme.js";
 import { renderMarkdown, toggleTask } from "./editor.js";
+import { fileToDataURL, firstImageFile, insertAtCaret } from "./images.js";
+import { armReminder, clearReminder, reminderLabel, toLocalInputValue } from "./reminders.js";
 
 const SAVE_DELAY = 300;
 const CONFIRM_MS = 2000;
@@ -28,6 +30,7 @@ const ICONS = {
   open: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11 11 5"/><path d="M6 5h5v5"/></svg>`,
   overflow: `<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.35"/><circle cx="8" cy="8" r="1.35"/><circle cx="12.5" cy="8" r="1.35"/></svg>`,
   trash: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10"/><path d="M6.4 4.5V3h3.2v1.5"/><path d="M4.6 4.5 5.2 12.5a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-8"/></svg>`,
+  bell: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2c-2 0-3.3 1.5-3.3 3.4 0 3-1.2 3.8-1.2 3.8h9s-1.2-.8-1.2-3.8C11.3 3.5 10 2 8 2Z"/><path d="M6.8 13.5a1.3 1.3 0 0 0 2.4 0"/></svg>`,
 };
 
 function debounced(fn, delay) {
@@ -63,6 +66,7 @@ function buildCard(note, href) {
         <button class="sn-icon-btn sn-overflow-btn" title="More…">${ICONS.overflow}</button>
       </div>
     </div>
+    <button class="sn-remind-pill" hidden></button>
     <textarea class="sn-card-body" placeholder="Write something…" spellcheck="false"></textarea>
     <div class="sn-card-preview" hidden></div>
   `;
@@ -74,6 +78,7 @@ function buildCard(note, href) {
   const scopeEl = card.querySelector(".sn-scope-toggle");
   const openEl = card.querySelector(".sn-card-open");
   const dotEl = card.querySelector(".sn-local-dot");
+  const remindPill = card.querySelector(".sn-remind-pill");
   titleEl.value = note.title || "";
   bodyEl.value = note.text || "";
   labelScope(scopeEl, note);
@@ -98,6 +103,19 @@ function buildCard(note, href) {
   }
   updateBadge();
 
+  // A future reminder shows a clickable pill (⏰ time); clicking it opens the
+  // overflow menu on its reminder controls. A past/absent reminder hides it.
+  function updateRemindPill() {
+    const upcoming = note.remindAt && note.remindAt > Date.now();
+    remindPill.hidden = !upcoming;
+    if (upcoming) {
+      remindPill.innerHTML = `${ICONS.bell}<span>${reminderLabel(note.remindAt)}</span>`;
+      remindPill.title = "Reminder set — click to change";
+    }
+  }
+  updateRemindPill();
+  remindPill.addEventListener("click", () => overflowBtn.click());
+
   const save = debounced(async () => {
     await saveNote(note);
     updateBadge();
@@ -109,6 +127,35 @@ function buildCard(note, href) {
   bodyEl.addEventListener("input", () => {
     note.text = bodyEl.value;
     save();
+  });
+
+  // ---- paste / drop an image → inline downscaled markdown image ----
+  async function embedImage(file) {
+    try {
+      const dataUrl = await fileToDataURL(file);
+      // Blank line around the image so markdown treats it as its own block.
+      insertAtCaret(bodyEl, `\n![image](${dataUrl})\n`);
+      note.text = bodyEl.value;
+      await saveNote(note);
+      updateBadge();
+    } catch {
+      /* undecodable image — leave the note untouched */
+    }
+  }
+  bodyEl.addEventListener("paste", (e) => {
+    const file = firstImageFile(e.clipboardData);
+    if (!file) return; // normal text paste
+    e.preventDefault();
+    embedImage(file);
+  });
+  bodyEl.addEventListener("dragover", (e) => {
+    if (firstImageFile(e.dataTransfer)) e.preventDefault();
+  });
+  bodyEl.addEventListener("drop", (e) => {
+    const file = firstImageFile(e.dataTransfer);
+    if (!file) return;
+    e.preventDefault();
+    embedImage(file);
   });
 
   // ---- markdown preview (read-only) with live task checkboxes ----
@@ -194,9 +241,49 @@ function buildCard(note, href) {
       ).join("")}
     </div>
     <button class="sn-menu-item sn-set-default">Set as site default</button>
+    <div class="sn-remind-group">
+      <label class="sn-remind-label">Remind me</label>
+      <input class="sn-remind-input" type="datetime-local">
+      <div class="sn-remind-buttons">
+        <button class="sn-menu-item sn-remind-set">Set reminder</button>
+        <button class="sn-menu-item sn-remind-clear" hidden>Clear</button>
+      </div>
+    </div>
     <button class="sn-menu-item sn-card-delete">Delete note</button>
   `;
   card.appendChild(menu);
+
+  // ---- reminder controls ----
+  const remindInput = menu.querySelector(".sn-remind-input");
+  const remindSetBtn = menu.querySelector(".sn-remind-set");
+  const remindClearBtn = menu.querySelector(".sn-remind-clear");
+
+  function syncRemindControls() {
+    remindInput.value = toLocalInputValue(note.remindAt);
+    remindClearBtn.hidden = !(note.remindAt && note.remindAt > Date.now());
+  }
+  syncRemindControls();
+
+  remindSetBtn.addEventListener("click", async () => {
+    if (!remindInput.value) return;
+    const when = new Date(remindInput.value).getTime();
+    if (!Number.isFinite(when) || when <= Date.now()) return; // ignore past/invalid
+    note.remindAt = when;
+    await saveNote(note);
+    armReminder(note);
+    updateRemindPill();
+    syncRemindControls();
+    closeMenu();
+  });
+
+  remindClearBtn.addEventListener("click", async () => {
+    note.remindAt = null;
+    await saveNote(note);
+    clearReminder(note.id);
+    updateRemindPill();
+    syncRemindControls();
+    closeMenu();
+  });
 
   function paintSwatches() {
     menu.querySelectorAll(".sn-color-option").forEach((btn) => {

@@ -3344,13 +3344,27 @@ ${content}</tr>
       "li",
       "a",
       "input",
-      "span"
+      "span",
+      "img"
     ],
-    ALLOWED_ATTR: ["href", "title", "type", "checked", "disabled", "class", "data-line"],
-    // No javascript: / data: URLs; force safe link targets.
+    ALLOWED_ATTR: ["href", "title", "type", "checked", "disabled", "class", "data-line", "src", "alt"],
+    // No javascript: URLs. data: is allowed ONLY on <img> (see the hook below),
+    // so pasted/embedded images render while text URLs stay restricted to http(s).
     ALLOW_DATA_ATTR: false
   };
+  var hookInstalled = false;
+  function installImgHook() {
+    if (hookInstalled) return;
+    hookInstalled = true;
+    import_dompurify.default.addHook("afterSanitizeAttributes", (node) => {
+      if (node.nodeName !== "IMG" || !node.hasAttribute("src")) return;
+      const src = node.getAttribute("src") || "";
+      const ok = /^data:image\/(png|jpeg|gif|webp);/i.test(src) || /^https?:\/\//i.test(src);
+      if (!ok) node.removeAttribute("src");
+    });
+  }
   function sanitizeHTML(html2) {
+    installImgHook();
     return import_dompurify.default.sanitize(html2, CONFIG);
   }
 
@@ -3376,6 +3390,93 @@ ${content}</tr>
     return lines.join("\n");
   }
 
+  // src/content/images.js
+  var MAX_EDGE = 1024;
+  var JPEG_QUALITY = 0.82;
+  function loadImage(file) {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error("Could not decode image"));
+      };
+      img.src = url;
+    });
+  }
+  async function fileToDataURL(file) {
+    const img = await loadImage(file);
+    const { naturalWidth: w, naturalHeight: h } = img;
+    const scale = Math.min(1, MAX_EDGE / Math.max(w, h));
+    const cw = Math.max(1, Math.round(w * scale));
+    const ch = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(img, 0, 0, cw, ch);
+    const isPng = file.type === "image/png";
+    return canvas.toDataURL(isPng ? "image/png" : "image/jpeg", isPng ? void 0 : JPEG_QUALITY);
+  }
+  function firstImageFile(dataTransfer) {
+    if (!dataTransfer) return null;
+    const items = dataTransfer.items ? [...dataTransfer.items] : [];
+    for (const it of items) {
+      if (it.kind === "file" && it.type.startsWith("image/")) return it.getAsFile();
+    }
+    const files = dataTransfer.files ? [...dataTransfer.files] : [];
+    return files.find((f) => f.type.startsWith("image/")) || null;
+  }
+  function insertAtCaret(textarea, snippet) {
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? textarea.value.length;
+    const before = textarea.value.slice(0, start);
+    const after = textarea.value.slice(end);
+    textarea.value = before + snippet + after;
+    const pos = start + snippet.length;
+    textarea.selectionStart = textarea.selectionEnd = pos;
+  }
+
+  // src/content/reminders.js
+  function armReminder(note) {
+    if (!note.remindAt || note.remindAt <= Date.now()) return;
+    send({ type: "SITE_NOTES_SET_REMINDER", noteId: note.id, when: note.remindAt });
+  }
+  function clearReminder(noteId) {
+    send({ type: "SITE_NOTES_CLEAR_REMINDER", noteId });
+  }
+  function armAll(notes) {
+    for (const n of notes) armReminder(n);
+  }
+  function send(msg) {
+    try {
+      chrome.runtime.sendMessage(msg);
+    } catch {
+    }
+  }
+  function reminderLabel(remindAt) {
+    if (!remindAt) return "";
+    try {
+      return new Date(remindAt).toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit"
+      });
+    } catch {
+      return "";
+    }
+  }
+  function toLocalInputValue(remindAt) {
+    const d = remindAt ? new Date(remindAt) : /* @__PURE__ */ new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   // src/content/cards.js
   var SAVE_DELAY = 300;
   var CONFIRM_MS = 2e3;
@@ -3386,7 +3487,8 @@ ${content}</tr>
     link: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M6.6 9.4 9.4 6.6"/><path d="M7.2 4.5 8 3.7a2.6 2.6 0 0 1 3.7 3.7l-1.2 1.2"/><path d="M8.8 11.5 8 12.3a2.6 2.6 0 0 1-3.7-3.7l1.2-1.2"/></svg>`,
     open: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 11 11 5"/><path d="M6 5h5v5"/></svg>`,
     overflow: `<svg viewBox="0 0 16 16" fill="currentColor"><circle cx="3.5" cy="8" r="1.35"/><circle cx="8" cy="8" r="1.35"/><circle cx="12.5" cy="8" r="1.35"/></svg>`,
-    trash: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10"/><path d="M6.4 4.5V3h3.2v1.5"/><path d="M4.6 4.5 5.2 12.5a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-8"/></svg>`
+    trash: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4.5h10"/><path d="M6.4 4.5V3h3.2v1.5"/><path d="M4.6 4.5 5.2 12.5a1 1 0 0 0 1 .9h3.6a1 1 0 0 0 1-.9l.6-8"/></svg>`,
+    bell: `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2c-2 0-3.3 1.5-3.3 3.4 0 3-1.2 3.8-1.2 3.8h9s-1.2-.8-1.2-3.8C11.3 3.5 10 2 8 2Z"/><path d="M6.8 13.5a1.3 1.3 0 0 0 2.4 0"/></svg>`
   };
   function debounced(fn, delay) {
     let t = null;
@@ -3415,6 +3517,7 @@ ${content}</tr>
         <button class="sn-icon-btn sn-overflow-btn" title="More\u2026">${ICONS.overflow}</button>
       </div>
     </div>
+    <button class="sn-remind-pill" hidden></button>
     <textarea class="sn-card-body" placeholder="Write something\u2026" spellcheck="false"></textarea>
     <div class="sn-card-preview" hidden></div>
   `;
@@ -3425,6 +3528,7 @@ ${content}</tr>
     const scopeEl = card.querySelector(".sn-scope-toggle");
     const openEl = card.querySelector(".sn-card-open");
     const dotEl = card.querySelector(".sn-local-dot");
+    const remindPill = card.querySelector(".sn-remind-pill");
     titleEl.value = note.title || "";
     bodyEl.value = note.text || "";
     labelScope(scopeEl, note);
@@ -3443,6 +3547,16 @@ ${content}</tr>
       dotEl.hidden = note.synced !== false;
     }
     updateBadge();
+    function updateRemindPill() {
+      const upcoming = note.remindAt && note.remindAt > Date.now();
+      remindPill.hidden = !upcoming;
+      if (upcoming) {
+        remindPill.innerHTML = `${ICONS.bell}<span>${reminderLabel(note.remindAt)}</span>`;
+        remindPill.title = "Reminder set \u2014 click to change";
+      }
+    }
+    updateRemindPill();
+    remindPill.addEventListener("click", () => overflowBtn.click());
     const save = debounced(async () => {
       await saveNote(note);
       updateBadge();
@@ -3454,6 +3568,33 @@ ${content}</tr>
     bodyEl.addEventListener("input", () => {
       note.text = bodyEl.value;
       save();
+    });
+    async function embedImage(file) {
+      try {
+        const dataUrl = await fileToDataURL(file);
+        insertAtCaret(bodyEl, `
+![image](${dataUrl})
+`);
+        note.text = bodyEl.value;
+        await saveNote(note);
+        updateBadge();
+      } catch {
+      }
+    }
+    bodyEl.addEventListener("paste", (e) => {
+      const file = firstImageFile(e.clipboardData);
+      if (!file) return;
+      e.preventDefault();
+      embedImage(file);
+    });
+    bodyEl.addEventListener("dragover", (e) => {
+      if (firstImageFile(e.dataTransfer)) e.preventDefault();
+    });
+    bodyEl.addEventListener("drop", (e) => {
+      const file = firstImageFile(e.dataTransfer);
+      if (!file) return;
+      e.preventDefault();
+      embedImage(file);
     });
     let previewMode = false;
     function renderPreview() {
@@ -3521,9 +3662,44 @@ ${content}</tr>
     ).join("")}
     </div>
     <button class="sn-menu-item sn-set-default">Set as site default</button>
+    <div class="sn-remind-group">
+      <label class="sn-remind-label">Remind me</label>
+      <input class="sn-remind-input" type="datetime-local">
+      <div class="sn-remind-buttons">
+        <button class="sn-menu-item sn-remind-set">Set reminder</button>
+        <button class="sn-menu-item sn-remind-clear" hidden>Clear</button>
+      </div>
+    </div>
     <button class="sn-menu-item sn-card-delete">Delete note</button>
   `;
     card.appendChild(menu);
+    const remindInput = menu.querySelector(".sn-remind-input");
+    const remindSetBtn = menu.querySelector(".sn-remind-set");
+    const remindClearBtn = menu.querySelector(".sn-remind-clear");
+    function syncRemindControls() {
+      remindInput.value = toLocalInputValue(note.remindAt);
+      remindClearBtn.hidden = !(note.remindAt && note.remindAt > Date.now());
+    }
+    syncRemindControls();
+    remindSetBtn.addEventListener("click", async () => {
+      if (!remindInput.value) return;
+      const when = new Date(remindInput.value).getTime();
+      if (!Number.isFinite(when) || when <= Date.now()) return;
+      note.remindAt = when;
+      await saveNote(note);
+      armReminder(note);
+      updateRemindPill();
+      syncRemindControls();
+      closeMenu();
+    });
+    remindClearBtn.addEventListener("click", async () => {
+      note.remindAt = null;
+      await saveNote(note);
+      clearReminder(note.id);
+      updateRemindPill();
+      syncRemindControls();
+      closeMenu();
+    });
     function paintSwatches() {
       menu.querySelectorAll(".sn-color-option").forEach((btn) => {
         const c = colorValue(btn.dataset.color);
@@ -3989,15 +4165,6 @@ ${content}</tr>
         applyOpacity();
         persist();
       });
-      const stopAdjust = () => panel.classList.remove("sn-adjusting");
-      const endDrag = () => {
-        stopAdjust();
-        opacitySlider.blur();
-      };
-      opacitySlider.addEventListener("pointerdown", () => panel.classList.add("sn-adjusting"));
-      opacitySlider.addEventListener("pointerup", endDrag);
-      opacitySlider.addEventListener("pointercancel", endDrag);
-      opacitySlider.addEventListener("blur", stopAdjust);
       panel.querySelector(".sn-collapse").addEventListener("click", () => {
         ui.collapsed = !ui.collapsed;
         applyCollapsed();
@@ -4223,6 +4390,7 @@ ${content}</tr>
       const notes = await loadNotesForHost(host, href);
       if (notes.length || ui.open) show();
       refreshMarkers();
+      armAll(notes);
     }
     return { show, hide, toggle, init, addHighlightNote };
   }

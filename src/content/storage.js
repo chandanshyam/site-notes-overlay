@@ -7,7 +7,10 @@
 //
 // A Note is:
 //   { id, host, scope: 'site'|'url', url, title, text, color,
-//     anchor?, createdAt, updatedAt, synced }
+//     anchor?, remindAt?, createdAt, updatedAt, synced }
+//
+// text may embed images as inline data: URLs in markdown (![](data:image/...)).
+// remindAt is an epoch-ms time; the background worker schedules a notification.
 //
 // Everything is promise-based. chrome.storage.* returns promises in MV3 (Chrome
 // 88+); the test harness supplies a matching in-memory mock.

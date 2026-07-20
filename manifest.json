@@ -9,7 +9,7 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "permissions": ["storage", "scripting", "contextMenus"],
+  "permissions": ["storage", "scripting", "contextMenus", "alarms", "notifications"],
   "host_permissions": ["<all_urls>"],
   "content_scripts": [
     {
