@@ -51,7 +51,7 @@ function labelScope(el, note) {
     : "Shows on the whole site — click to pin to this page";
 }
 
-function buildCard(note, href) {
+export function buildCard(note, href) {
   const card = document.createElement("div");
   card.className = "sn-card";
   card.dataset.noteId = note.id;
@@ -84,11 +84,13 @@ function buildCard(note, href) {
   labelScope(scopeEl, note);
 
   // ↗ opens the page/site this note belongs to: a url-scoped note links to its
-  // exact page, a site-scoped note links to the host's home.
+  // exact page, a site-scoped note links to its own host's home. Keyed off the
+  // note's own host (not the current page) so it stays correct when a card is
+  // shown on a different site than the one it's pinned to.
   function updateOpenLink() {
     let target;
     try {
-      target = note.scope === "url" && note.url ? note.url : new URL(href).origin + "/";
+      target = note.scope === "url" && note.url ? note.url : "https://" + note.host + "/";
     } catch {
       target = href;
     }

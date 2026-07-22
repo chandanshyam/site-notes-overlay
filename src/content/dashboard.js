@@ -130,6 +130,22 @@ export function mountDashboard(panelEl, onClose, onOpenNote) {
         badge.className = "sn-dash-scope-badge";
         badge.textContent = n.scope === "url" ? "page" : "site";
 
+        // ↗ jumps to the note's own page (url-scoped) or site home (site-scoped).
+        // This is the only thing that navigates — double-click just opens the
+        // note in the panel where you are.
+        const open = document.createElement("a");
+        open.className = "sn-dash-open";
+        open.href =
+          n.scope === "url" && n.url
+            ? n.url
+            : /^https?:\/\//.test(n.host)
+            ? n.host
+            : "https://" + n.host + "/";
+        open.target = "_blank";
+        open.rel = "noopener noreferrer";
+        open.textContent = "↗";
+        open.title = n.scope === "url" ? "Go to this page" : "Go to site home";
+
         const del = document.createElement("button");
         del.className = "sn-dash-delete";
         del.textContent = "🗑";
@@ -139,7 +155,7 @@ export function mountDashboard(panelEl, onClose, onOpenNote) {
           reload();
         });
 
-        row.append(title, preview, badge, del);
+        row.append(title, preview, badge, open, del);
         section.appendChild(row);
       }
       listEl.appendChild(section);

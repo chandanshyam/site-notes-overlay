@@ -3535,7 +3535,7 @@ ${content}</tr>
     function updateOpenLink() {
       let target;
       try {
-        target = note.scope === "url" && note.url ? note.url : new URL(href).origin + "/";
+        target = note.scope === "url" && note.url ? note.url : "https://" + note.host + "/";
       } catch {
         target = href;
       }
@@ -3965,6 +3965,13 @@ ${content}</tr>
           const badge = document.createElement("span");
           badge.className = "sn-dash-scope-badge";
           badge.textContent = n.scope === "url" ? "page" : "site";
+          const open = document.createElement("a");
+          open.className = "sn-dash-open";
+          open.href = n.scope === "url" && n.url ? n.url : /^https?:\/\//.test(n.host) ? n.host : "https://" + n.host + "/";
+          open.target = "_blank";
+          open.rel = "noopener noreferrer";
+          open.textContent = "\u2197";
+          open.title = n.scope === "url" ? "Go to this page" : "Go to site home";
           const del = document.createElement("button");
           del.className = "sn-dash-delete";
           del.textContent = "\u{1F5D1}";
@@ -3973,7 +3980,7 @@ ${content}</tr>
             await deleteNote(n.id);
             reload();
           });
-          row.append(title, preview, badge, del);
+          row.append(title, preview, badge, open, del);
           section.appendChild(row);
         }
         listEl.appendChild(section);
@@ -4218,12 +4225,7 @@ ${content}</tr>
             renderCards(host, href, container);
           },
           (note) => {
-            if (note.host === host) {
-              setTimeout(() => revealNote(note.id), 220);
-            } else {
-              const url = note.scope === "url" && note.url ? note.url : "https://" + note.host + "/";
-              window.open(url, "_blank", "noopener,noreferrer");
-            }
+            setTimeout(() => revealNote(note), 220);
           }
         );
       });
@@ -4344,11 +4346,16 @@ ${content}</tr>
       const anchored = notes.filter((n) => n.anchor);
       mountMarkers(anchored, (noteId) => revealNote(noteId));
     }
-    async function revealNote(noteId) {
+    async function revealNote(noteOrId) {
       show();
       const container = panel.querySelector(".sn-cards-container");
       await renderCards(host, href, container);
-      const card = container.querySelector(`[data-note-id="${noteId}"]`);
+      const id = typeof noteOrId === "string" ? noteOrId : noteOrId && noteOrId.id;
+      let card = container.querySelector(`[data-note-id="${id}"]`);
+      if (!card && noteOrId && typeof noteOrId === "object") {
+        card = buildCard(noteOrId, href);
+        container.prepend(card);
+      }
       if (card) {
         card.scrollIntoView({ block: "nearest" });
         card.classList.add("sn-flash");

@@ -3,7 +3,7 @@
 // migration. Card contents are delegated to cards.js.
 
 import { loadUI, saveUI, loadNotesForHost, saveNote, loadMeta, generateId } from "./storage.js";
-import { renderCards, addCard } from "./cards.js";
+import { renderCards, addCard, buildCard } from "./cards.js";
 import { exportSite, pickAndImport, importResultMessage, showToast } from "./io.js";
 import { mountDashboard } from "./dashboard.js";
 import { mountMarkers } from "./highlight.js";
@@ -121,17 +121,12 @@ export function createPanel(host, href) {
           renderCards(host, href, container);
         },
         (note) => {
-          // Double-clicked a note in the dashboard.
-          if (note.host === host) {
-            // Wait for the dashboard's close animation + its onClose re-render
-            // (~200ms) to finish, so revealNote's scroll/flash isn't wiped.
-            setTimeout(() => revealNote(note.id), 220);
-          } else {
-            // A note for another site — open that site/page in a new tab.
-            const url =
-              note.scope === "url" && note.url ? note.url : "https://" + note.host + "/";
-            window.open(url, "_blank", "noopener,noreferrer");
-          }
+          // Double-clicked a note in the dashboard — always open it in the panel
+          // on the current page, whatever site/URL it's pinned to. Navigating to
+          // its own page is the job of the row's ↗ arrow, not the open gesture.
+          // Wait for the dashboard's close animation + its onClose re-render
+          // (~200ms) to finish, so revealNote's scroll/flash isn't wiped.
+          setTimeout(() => revealNote(note), 220);
         }
       );
     });
@@ -285,11 +280,23 @@ export function createPanel(host, href) {
     mountMarkers(anchored, (noteId) => revealNote(noteId));
   }
 
-  async function revealNote(noteId) {
+  // Accepts a note id (from anchored markers / highlight flow, always on the
+  // current page) or a whole note object (from the dashboard, possibly pinned to
+  // a different page or site). If the note isn't part of the current page's set,
+  // its card is built and shown here anyway — viewing a note never depends on
+  // being on its page.
+  async function revealNote(noteOrId) {
     show();
     const container = panel.querySelector(".sn-cards-container");
     await renderCards(host, href, container);
-    const card = container.querySelector(`[data-note-id="${noteId}"]`);
+    const id = typeof noteOrId === "string" ? noteOrId : noteOrId && noteOrId.id;
+    let card = container.querySelector(`[data-note-id="${id}"]`);
+    if (!card && noteOrId && typeof noteOrId === "object") {
+      // Off-page note: renderCards filtered it out (different URL/host). Show it
+      // in place without redirecting; its ↗ arrow jumps to its own page.
+      card = buildCard(noteOrId, href);
+      container.prepend(card);
+    }
     if (card) {
       card.scrollIntoView({ block: "nearest" });
       card.classList.add("sn-flash");
